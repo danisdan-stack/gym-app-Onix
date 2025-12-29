@@ -1,0 +1,23 @@
+﻿# DEPENDENCIAS
+node_modules/
+package-lock.json
+yarn.lock
+
+# ENTORNO
+.env
+.env.local
+
+# BUILD
+dist/
+build/
+www/
+platforms/
+plugins/
+
+# LOGS
+*.log
+logs/
+
+# SISTEMA
+.DS_Store
+Thumbs.db

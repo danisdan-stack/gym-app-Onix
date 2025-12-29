@@ -1,0 +1,29 @@
+CREATE TABLE entrenador(
+	---RELACION CON USUARIO (1:1)
+	usuario_id INTEGER PRIMARY KEY REFERENCES usuario(id) ON DELETE CASCADE,
+
+	---DATOS PERSONALES
+	dni VARCHAR(20) UNIQUE NOT NULL,
+	nombre VARCHAR(100) NOT NULL,
+	apellido VARCHAR(100) NOT NULL,
+	telefono VARCHAR (20),
+
+	---DATOS PERSONALES
+	especializacion VARCHAR(200),
+	certificaciones TEXT,
+	bio TEXT,
+
+	---ESTADISTICAS
+	clientes_actuales INTEGER DEFAULT 0,
+	calificacion_promedio DECIMAL(5,2) DEFAULT 0.0, -- 0.00 a 5.00
+
+	---ESTADO
+	disponible BOOLEAN DEFAULT TRUE,
+
+	---FECHAS LABORALES
+	fecha_contratacion DATE DEFAULT CURRENT_TIMESTAMP,
+
+	---AUDITORIA
+	creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
