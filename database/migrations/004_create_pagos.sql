@@ -2,6 +2,7 @@ CREATE TABLE pagos(
 	id SERIAL PRIMARY KEY,
 	cliente_id integer NOT NULL REFERENCES cliente(usuario_id) ON DELETE CASCADE,
 	monto DECIMAL(10,2) NOT NULL,
+	concepto VARCHAR(100) DEFAULT 'Mensualidad',
 	fecha_pago DATE DEFAULT CURRENT_DATE,
 	fecha_vencimiento DATE NOT NULL,
 	fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
