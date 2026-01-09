@@ -1,0 +1,362 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>Dashboard</ion-title>
+    
+    <ion-buttons slot="end">
+      <ion-button (click)="refreshData()" fill="clear">
+        <ion-icon slot="icon-only" name="refresh"></ion-icon>
+      </ion-button>
+      
+      <ion-button fill="clear">
+        <ion-icon slot="icon-only" name="notifications"></ion-icon>
+        <ion-badge color="danger" class="notification-badge">3</ion-badge>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="loading-content">
+      <ion-spinner name="crescent" color="primary"></ion-spinner>
+      <p>Cargando dashboard...</p>
+    </div>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div *ngIf="!loading" class="dashboard-content">
+    <!-- Stats Cards -->
+    <ion-grid>
+      <ion-row>
+        <!-- Total Clientes -->
+        <ion-col size="12" size-md="6" size-lg="3">
+          <ion-card button (click)="goToMembers()" class="stat-card">
+            <ion-card-content>
+              <div class="stat-content">
+                <div class="stat-icon primary">
+                  <ion-icon name="people"></ion-icon>
+                </div>
+                <div class="stat-info">
+                  <h2>{{stats.totalClientes || 0}}</h2>
+                  <p>Total Clientes</p>
+                  <ion-badge color="success">
+                    {{stats.clientesActivos || 0}} activos
+                  </ion-badge>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+
+        <!-- Ingresos Mensuales -->
+        <ion-col size="12" size-md="6" size-lg="3">
+          <ion-card button (click)="goToPayments()" class="stat-card">
+            <ion-card-content>
+              <div class="stat-content">
+                <div class="stat-icon success">
+                  <ion-icon name="cash"></ion-icon>
+                </div>
+                <div class="stat-info">
+                  <h2>${{(stats.ingresosMensuales || 0) | number}}</h2>
+                  <p>Ingresos Mensuales</p>
+                  <ion-badge color="warning">
+                    {{stats.pagosPendientes || 0}} pendientes
+                  </ion-badge>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+
+        <!-- Carnets Activos -->
+        <ion-col size="12" size-md="6" size-lg="3">
+          <ion-card button (click)="goToCarnets()" class="stat-card">
+            <ion-card-content>
+              <div class="stat-content">
+                <div class="stat-icon warning">
+                  <ion-icon name="id-card"></ion-icon>
+                </div>
+                <div class="stat-info">
+                  <h2>{{stats.carnetsActivos || 0}}</h2>
+                  <p>Carnets Activos</p>
+                  <ion-badge color="success">Válidos</ion-badge>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+
+        <!-- Asistencia Hoy -->
+        <ion-col size="12" size-md="6" size-lg="3">
+          <ion-card class="stat-card">
+            <ion-card-content>
+              <div class="stat-content">
+                <div class="stat-icon tertiary">
+                  <ion-icon name="barbell"></ion-icon>
+                </div>
+                <div class="stat-info">
+                  <h2>{{stats.asistenciaHoy || 0}}</h2>
+                  <p>Asistencia Hoy</p>
+                  <ion-badge color="medium">En tiempo real</ion-badge>
+                </div>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+
+    <!-- ACCIONES RÁPIDAS -->
+    <ion-card class="quick-actions-card">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="flash"></ion-icon>
+          Acciones Rápidas
+        </ion-card-title>
+        <ion-card-subtitle>Gestión rápida del gimnasio</ion-card-subtitle>
+      </ion-card-header>
+      
+      <ion-card-content>
+        <ion-grid class="quick-actions-grid">
+          <ion-row>
+            <!-- 1. NUEVO CLIENTE -->
+            <ion-col size="6" size-md="3">
+              <ion-button 
+                expand="block" 
+                fill="solid" 
+                color="primary"
+                
+               (click)="goToRapido()" 
+                class="quick-action-btn">
+                <div class="action-content">
+                  <div class="action-icon">
+                           <ion-icon name="flash"></ion-icon>  
+                  </div>
+                  <div class="action-label">
+                    <h3>Nuevo Cliente</h3>
+                    <p>Registrar nuevo miembro</p>
+                  </div>
+                </div>
+              </ion-button>
+            </ion-col>
+
+            <!-- 2. REGISTRAR PAGO -->
+            <ion-col size="6" size-md="3">
+              <ion-button 
+                expand="block" 
+                fill="solid" 
+                color="success"
+                (click)="openRegisterPaymentModal()"
+                class="quick-action-btn">
+                <div class="action-content">
+                  <div class="action-icon">
+                    <ion-icon name="cash"></ion-icon>
+                  </div>
+                  <div class="action-label">
+                    <h3>Registrar Pago</h3>
+                    <p>Registrar pago de mensualidad</p>
+                  </div>
+                </div>
+              </ion-button>
+            </ion-col>
+
+            <!-- 3. EDITAR CLIENTE -->
+            <ion-col size="6" size-md="3">
+              <ion-button 
+                expand="block" 
+                fill="solid" 
+                color="warning"
+                (click)="openEditClientModal()"
+                class="quick-action-btn">
+                <div class="action-content">
+                  <div class="action-icon">
+                    <ion-icon name="create"></ion-icon>
+                  </div>
+                  <div class="action-label">
+                    <h3>Editar Cliente</h3>
+                    <p>Modificar datos de cliente</p>
+                  </div>
+                </div>
+              </ion-button>
+            </ion-col>
+
+            <!-- 4. VER CARNETS -->
+            <ion-col size="6" size-md="3">
+              <ion-button 
+                expand="block" 
+                fill="solid" 
+                color="tertiary"
+                (click)="goToCarnets()"
+                class="quick-action-btn">
+                <div class="action-content">
+                  <div class="action-icon">
+                    <ion-icon name="id-card"></ion-icon>
+                  </div>
+                  <div class="action-label">
+                    <h3>Ver Carnets</h3>
+                    <p>Ver y gestionar carnets</p>
+                  </div>
+                </div>
+              </ion-button>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Menú de Acciones Adicionales -->
+    <ion-list class="additional-actions">
+      <ion-list-header>
+        <ion-label>Otras Acciones</ion-label>
+      </ion-list-header>
+      
+      <ion-item button (click)="goToMembers()">
+        <ion-icon slot="start" name="people" color="primary"></ion-icon>
+        <ion-label>Lista de Miembros</ion-label>
+        <ion-note slot="end">{{stats.totalClientes || 0}} clientes</ion-note>
+      </ion-item>
+      
+      <ion-item button (click)="goToPayments()">
+        <ion-icon slot="start" name="card" color="success"></ion-icon>
+        <ion-label>Historial de Pagos</ion-label>
+        <ion-badge slot="end" color="warning">{{stats.pagosPendientes || 0}} pendientes</ion-badge>
+      </ion-item>
+      
+      <ion-item button (click)="goToReports()">
+        <ion-icon slot="start" name="stats-chart" color="tertiary"></ion-icon>
+        <ion-label>Reportes y Estadísticas</ion-label>
+      </ion-item>
+      
+      <ion-item button (click)="openSettings()">
+        <ion-icon slot="start" name="settings" color="medium"></ion-icon>
+        <ion-label>Configuración</ion-label>
+      </ion-item>
+    </ion-list>
+
+    <!-- Recent Clients -->
+    <ion-card *ngIf="recentClients && recentClients.length > 0">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="time"></ion-icon>
+          Miembros Recientes
+        </ion-card-title>
+        <ion-button fill="clear" slot="end" (click)="goToMembers()">
+          Ver Todos
+          <ion-icon name="arrow-forward" slot="end"></ion-icon>
+        </ion-button>
+      </ion-card-header>
+      
+      <ion-list lines="full">
+        <ion-item 
+          *ngFor="let client of recentClients" 
+          button 
+          (click)="viewClientDetails(client)">
+          <ion-avatar slot="start">
+            <ion-icon name="person" *ngIf="!client.foto"></ion-icon>
+            <img [src]="client.foto" *ngIf="client.foto" alt="Avatar">
+          </ion-avatar>
+          <ion-label>
+            <h2>{{client.nombre}} {{client.apellido}}</h2>
+            <p>
+              <ion-icon name="mail" size="small"></ion-icon>
+              {{client.email || 'Sin email'}}
+            </p>
+            <p>
+              <ion-badge [color]="getStatusColor(client.estado_cuota)">
+                {{client.estado_cuota || 'pendiente'}}
+              </ion-badge>
+              <ion-badge color="medium" *ngIf="client.membresia">
+                {{client.membresia}}
+              </ion-badge>
+            </p>
+          </ion-label>
+          <ion-note slot="end">
+            {{client.fecha_inscripcion | date:'dd/MM'}}
+          </ion-note>
+        </ion-item>
+      </ion-list>
+    </ion-card>
+
+    <!-- Pending Payments -->
+    <ion-card *ngIf="pendingPayments && pendingPayments.length > 0">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="alert-circle"></ion-icon>
+          Pagos Pendientes
+        </ion-card-title>
+        <ion-button fill="clear" slot="end" (click)="goToPayments()">
+          Ver Todos
+          <ion-icon name="arrow-forward" slot="end"></ion-icon>
+        </ion-button>
+      </ion-card-header>
+      
+      <ion-list lines="full">
+        <ion-item 
+          *ngFor="let payment of pendingPayments" 
+          button 
+          (click)="viewPaymentDetails(payment)">
+          <ion-icon 
+            slot="start" 
+            [name]="getPaymentMethodIcon(payment.metodo)"
+            [color]="(payment.diasVencido || 0) > 0 ? 'danger' : 'warning'">
+          </ion-icon>
+          
+          <ion-label>
+            <h2>{{payment.clienteNombre || 'Cliente'}}</h2>
+            <p>${{(payment.monto || 0) | number}} - {{payment.metodo || 'N/A'}}</p>
+            <p>
+              <ion-badge [color]="payment.estado === 'pendiente' ? 'warning' : 'medium'">
+                {{payment.estado || 'pendiente'}}
+              </ion-badge>
+              <ion-badge color="danger" *ngIf="(payment.diasVencido || 0) > 0">
+                Vencido {{payment.diasVencido || 0}} días
+              </ion-badge>
+            </p>
+          </ion-label>
+          
+          <div slot="end" class="payment-actions">
+            <ion-button 
+              size="small" 
+              fill="clear" 
+              color="success" 
+              (click)="markAsPaid(payment.id); $event.stopPropagation()">
+              <ion-icon name="checkmark" slot="icon-only"></ion-icon>
+            </ion-button>
+            <ion-button 
+              size="small" 
+              fill="clear" 
+              color="medium" 
+              (click)="sendPaymentReminder(payment.id); $event.stopPropagation()">
+              <ion-icon name="mail" slot="icon-only"></ion-icon>
+            </ion-button>
+          </div>
+        </ion-item>
+      </ion-list>
+    </ion-card>
+  </div>
+
+  <!-- Floating Action Button -->
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button (click)="openQuickActionMenu()">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+    <ion-fab-list side="top">
+      <ion-fab-button (click)="openNewClientModal()">
+        <ion-icon name="person-add"></ion-icon>
+      </ion-fab-button>
+      <ion-fab-button (click)="openRegisterPaymentModal()">
+        <ion-icon name="cash"></ion-icon>
+      </ion-fab-button>
+      <ion-fab-button (click)="openEditClientModal()">
+        <ion-icon name="create"></ion-icon>
+      </ion-fab-button>
+      <ion-fab-button (click)="goToCarnets()">
+        <ion-icon name="id-card"></ion-icon>
+      </ion-fab-button>
+    </ion-fab-list>
+  </ion-fab>
+</ion-content>

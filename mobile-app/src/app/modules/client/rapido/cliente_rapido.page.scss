@@ -1,0 +1,415 @@
+// ============================================
+// PALETA DE COLORES: Gris claro y Negro
+// ============================================
+:host {
+  --ion-background-color: #f5f5f5;  // Gris muy claro
+  --ion-text-color: #333333;        // Negro suave
+  --ion-color-primary: #424242;     // Gris oscuro
+  --ion-color-secondary: #757575;   // Gris medio
+  --ion-color-success: #4caf50;     // Verde para éxito
+  --ion-color-warning: #ff9800;     // Naranja para advertencias
+  --ion-color-danger: #f44336;      // Rojo para errores
+}
+
+// ============================================
+// CONTENIDO PRINCIPAL
+// ============================================
+ion-content {
+  --background: linear-gradient(180deg, #f5f5f5 0%, #eeeeee 100%);
+  
+  // Ocultar scrollbar
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+// ============================================
+// HEADER ELEGANTE
+// ============================================
+ion-header {
+  ion-toolbar {
+    --background: #212121;  // Negro elegante
+    --color: #ffffff;
+    --border-color: transparent;
+    
+    ion-title {
+      font-weight: 600;
+      font-size: 1.2rem;
+      letter-spacing: 0.5px;
+    }
+    
+    ion-back-button {
+      --color: #ffffff;
+      --icon-font-size: 1.8rem;
+    }
+  }
+}
+
+// ============================================
+// TARJETA DEL FORMULARIO
+// ============================================
+ion-card {
+  --background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e0e0;
+  margin: 16px;
+  overflow: hidden;
+  
+  ion-card-header {
+    background: linear-gradient(135deg, #424242 0%, #212121 100%);
+    padding: 24px 20px;
+    
+    ion-card-title {
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 1.4rem;
+      text-align: center;
+      margin: 0;
+    }
+  }
+  
+  ion-card-content {
+    padding: 24px 20px;
+  }
+}
+
+// ============================================
+// ENCABEZADO INFORMATIVO
+// ============================================
+.header-info {
+  text-align: center;
+  margin-bottom: 32px;
+  
+  h2 {
+    color: #212121;
+    font-weight: 700;
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+  }
+  
+  p {
+    color: #757575;
+    font-size: 1rem;
+    margin-bottom: 16px;
+  }
+}
+
+// ============================================
+// CHIP DE MEMBRESÍA
+// ============================================
+.membresia-chip {
+  background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+  color: white;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+  
+  ion-icon {
+    font-size: 1.2rem;
+  }
+}
+
+// ============================================
+// INPUTS ELEGANTES
+// ============================================
+ion-item {
+  --background: transparent;
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  --border-color: #e0e0e0;
+  --highlight-color-focused: #424242;
+  --highlight-color-valid: #4caf50;
+  --highlight-color-invalid: #f44336;
+  
+  margin-bottom: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  
+  &.item-has-focus {
+    --border-color: #424242;
+    box-shadow: 0 0 0 2px rgba(66, 66, 66, 0.1);
+  }
+  
+  ion-label {
+    color: #616161;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+    display: block;
+    
+    &[position="stacked"] {
+      transform: none !important;
+      margin-bottom: 8px;
+    }
+  }
+  
+  ion-input {
+    --background: #fafafa;
+    --padding-start: 16px;
+    --padding-end: 16px;
+    --padding-top: 12px;
+    --padding-bottom: 12px;
+    --color: #212121;
+    --placeholder-color: #9e9e9e;
+    
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    font-size: 1rem;
+    font-weight: 500;
+    
+    &:focus {
+      border-color: #424242;
+      background: #ffffff;
+    }
+    
+    &.ng-invalid.ng-touched {
+      border-color: #f44336;
+      background: #ffebee;
+    }
+  }
+}
+
+// ============================================
+// SECCIÓN DE MONTO
+// ============================================
+.monto-info {
+  background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 24px 0;
+  border: 2px solid #e0e0e0;
+  text-align: center;
+  
+  ion-text {
+    h3 {
+      color: #212121;
+      font-weight: 800;
+      font-size: 1.6rem;
+      margin: 0 0 8px 0;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      
+      &::before {
+        content: "💳 ";
+      }
+    }
+    
+    p {
+      color: #757575;
+      font-size: 0.9rem;
+      margin: 0;
+      font-weight: 500;
+    }
+  }
+}
+
+// ============================================
+// BOTÓN PRINCIPAL
+// ============================================
+ion-button[type="submit"] {
+  --background: linear-gradient(135deg, #212121 0%, #424242 100%);
+  --background-hover: linear-gradient(135deg, #000000 0%, #212121 100%);
+  --background-activated: #000000;
+  --border-radius: 12px;
+  --padding-top: 20px;
+  --padding-bottom: 20px;
+  --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  
+  height: 56px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-top: 32px;
+  
+  &:hover {
+    --box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+  }
+  
+  &:active {
+    transform: translateY(1px);
+  }
+  
+  &:disabled {
+    --background: #bdbdbd;
+    --box-shadow: none;
+    opacity: 0.7;
+  }
+  
+  ion-spinner {
+    --color: #ffffff;
+  }
+  
+  ion-icon {
+    font-size: 1.4rem;
+    margin-right: 8px;
+  }
+}
+
+// ============================================
+// TOAST PERSONALIZADO
+// ============================================
+ion-toast {
+  --background: #212121;
+  --color: #ffffff;
+  --border-radius: 12px;
+  --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  
+  &::part(message) {
+    font-weight: 600;
+    font-size: 1rem;
+  }
+  
+  &::part(button) {
+    color: #4caf50;
+    font-weight: 700;
+  }
+}
+
+// ============================================
+// RESPONSIVE DESIGN
+// ============================================
+@media (min-width: 768px) {
+  ion-card {
+    max-width: 500px;
+    margin: 24px auto;
+  }
+  
+  .header-info {
+    h2 {
+      font-size: 2.2rem;
+    }
+    
+    p {
+      font-size: 1.1rem;
+    }
+  }
+  
+  .monto-info {
+    ion-text {
+      h3 {
+        font-size: 1.8rem;
+      }
+    }
+  }
+}
+
+// ============================================
+// ANIMACIONES SUAVES
+// ============================================
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+ion-card {
+  animation: fadeIn 0.3s ease-out;
+}
+
+// ============================================
+// ESTADOS DE VALIDACIÓN
+// ============================================
+.form-error {
+  color: #f44336;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  padding-left: 16px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  
+  ion-icon {
+    font-size: 1rem;
+  }
+}
+
+.form-valid {
+  color: #4caf50;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  padding-left: 16px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  
+  ion-icon {
+    font-size: 1rem;
+  }
+}
+
+// ============================================
+// LOADING STATE
+// ============================================
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(245, 245, 245, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  border-radius: 16px;
+  
+  .loading-content {
+    text-align: center;
+    
+    ion-spinner {
+      width: 48px;
+      height: 48px;
+      --color: #424242;
+    }
+    
+    p {
+      margin-top: 16px;
+      color: #424242;
+      font-weight: 600;
+    }
+  }
+}
+
+// ============================================
+// EFECTOS DE FOCO
+// ============================================
+.form-field {
+  transition: all 0.2s ease;
+  
+  &:focus-within {
+    transform: translateY(-2px);
+    
+    ion-label {
+      color: #424242;
+    }
+  }
+}
+
+// ============================================
+// PSEUDO-ELEMENTOS DECORATIVOS
+// ============================================
+ion-card-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #4caf50, transparent);
+  border-radius: 3px;
+}

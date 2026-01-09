@@ -9,6 +9,13 @@ import carnetRoutes from './routes/carnet.routes';
 import entrenadorRoutes from './routes/entrenador.routes';
 import authRoutes from './routes/auth.routes';
 import clienteRoutes from './routes/cliente.routes';
+import dashboardRoutes from './routes/dashboard.routes';
+import twilioRoutes from './routes/twilio.routes';
+// Importar los controladores que necesitas
+import { 
+  listarClientesConCarnet, 
+  listarClientesSimplificado 
+} from './controllers/cliente.controller';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -20,18 +27,21 @@ const PORT = process.env.PORT || 3000;
 // MIDDLEWARES GLOBALES
 // ======================
 app.use(helmet());
-app.use(cors());
+
+// Configurar CORS correctamente (solo una vez)
+app.use(cors({
+  origin: ['http://localhost:8100', 'http://localhost:4200'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+}));
+
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // 📁 SERVIR ARCHIVOS ESTÁTICOS (carnets PNG)
 app.use('/storage', express.static(path.join(__dirname, '../storage')));
-
-// ======================
-// IMPORTAR TODAS LAS RUTAS
-// ======================
-
 
 // ======================
 // REGISTRAR TODAS LAS RUTAS
@@ -41,9 +51,22 @@ app.use('/api/clientes', clienteRoutes);    // Gestión de clientes
 app.use('/api/pagos', pagoRoutes);          // Registrar pagos + generar carnets
 app.use('/api/carnets', carnetRoutes);      // Descargar/ver carnets
 app.use('/api/entrenadores', entrenadorRoutes); // Gestión entrenadores
+app.use('/api/v1/dashboard', dashboardRoutes);
 
 // ======================
-// RUTAS DE HEALTH CHECK (actualizadas)
+// RUTAS ESPECIALES (AGREGADAS)
+// ======================
+app.get('/api/clientes-con-carnet', listarClientesConCarnet);
+app.get('/api/clientes-simplificado', listarClientesSimplificado);
+
+// Ruta para favicon (evita error 404)
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end(); // No Content
+});
+app.use('/api/twilio', twilioRoutes);
+
+// ======================
+// RUTAS DE HEALTH CHECK
 // ======================
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -55,9 +78,12 @@ app.get('/health', (req, res) => {
     rutas_activas: {
       auth: '/api/auth',
       clientes: '/api/clientes',
+      'clientes-con-carnet': '/api/clientes-con-carnet', // Agregado
+      'clientes-simplificado': '/api/clientes-simplificado', // Agregado
       pagos: '/api/pagos',
       carnets: '/api/carnets',
-      entrenadores: '/api/entrenadores'
+      entrenadores: '/api/entrenadores',
+      dashboard: '/api/v1/dashboard'
     }
   });
 });
@@ -77,9 +103,11 @@ app.get('/api/v1/health', (req, res) => {
         // Clientes
         crear_cliente: 'POST /api/clientes',
         listar_clientes: 'GET /api/clientes',
+        'clientes-con-carnet': 'GET /api/clientes-con-carnet', // Agregado
+        'clientes-simplificado': 'GET /api/clientes-simplificado', // Agregado
         buscar_cliente: 'GET /api/clientes?buscar=nombre',
         
-        // Pagos (LA MÁS IMPORTANTE)
+        // Pagos
         registrar_pago: 'POST /api/pagos',
         historial_pagos: 'GET /api/pagos/cliente/:id',
         
@@ -96,7 +124,7 @@ app.get('/api/v1/health', (req, res) => {
 });
 
 // ======================
-// RUTA DE BIENVENIDA (actualizada)
+// RUTA DE BIENVENIDA (solo una, eliminado el duplicado)
 // ======================
 app.get('/', (req, res) => {
   res.json({
@@ -116,27 +144,14 @@ app.get('/', (req, res) => {
       
       gestion: {
         clientes: 'GET /api/clientes',
+        'clientes-con-carnet': 'GET /api/clientes-con-carnet',
+        'clientes-simplificado': 'GET /api/clientes-simplificado',
         pagos: 'POST /api/pagos',
         carnets: 'GET /api/carnets/descargar/:id',
-        entrenadores: 'GET /api/entrenadores'
+        entrenadores: 'GET /api/entrenadores',
+        dashboard: 'GET /api/v1/dashboard/estadisticas'
       }
     }
-  });
-});
-
-// Resto del código igual (manejo de errores, 404, etc.)
-// ======================
-// RUTA DE BIENVENIDA
-// ======================
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Bienvenido a Onix Gym API',
-    endpoints: {
-      health: '/health',
-      api_health: '/api/v1/health',
-      documentation: 'Coming soon...'
-    },
-    version: '1.0.0'
   });
 });
 
@@ -147,7 +162,15 @@ app.use('*', (req, res) => {
   res.status(404).json({
     status: 'error',
     message: 'Ruta no encontrada',
-    path: req.originalUrl
+    path: req.originalUrl,
+    sugerencias: [
+      '/api/clientes',
+      '/api/clientes-con-carnet',
+      '/api/clientes-simplificado',
+      '/api/pagos',
+      '/health',
+      '/api/v1/health'
+    ]
   });
 });
 
@@ -161,6 +184,11 @@ app.use((error: any, req: any, res: any, next: any) => {
     message: 'Error interno del servidor',
     ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
   });
+});
+
+app.use((req, res, next) => {
+  res.setHeader('ngrok-skip-browser-warning', 'true');
+  next();
 });
 
 // ======================
@@ -177,5 +205,8 @@ app.listen(PORT, () => {
   console.log(`   📍 http://localhost:${PORT}`);
   console.log(`   ❤️  http://localhost:${PORT}/health`);
   console.log(`   ✅ http://localhost:${PORT}/api/v1/health`);
+  console.log(`   👥 http://localhost:${PORT}/api/clientes`);
+  console.log(`   🎫 http://localhost:${PORT}/api/clientes-con-carnet`);
+  console.log(`   📋 http://localhost:${PORT}/api/clientes-simplificado`);
   console.log('🚀 ========================================');
 });

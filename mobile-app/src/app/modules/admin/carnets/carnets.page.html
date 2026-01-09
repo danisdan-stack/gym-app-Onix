@@ -1,0 +1,54 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Gestión de Carnets</ion-title>
+    <ion-buttons slot="end">
+      <ion-button [routerLink]="['/admin/carnets/new']">
+        <ion-icon name="add" slot="start"></ion-icon>
+        Nuevo Carnet
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <!-- Estadísticas -->
+  <div class="stats">
+    <ion-card>
+      <ion-card-content>
+        <h3>Activos</h3>
+        <h2>{{activeCount}}</h2>
+      </ion-card-content>
+    </ion-card>
+    
+    <ion-card>
+      <ion-card-content>
+        <h3>Por Vencer</h3>
+        <h2>{{expiringCount}}</h2>
+      </ion-card-content>
+    </ion-card>
+    
+    <ion-card>
+      <ion-card-content>
+        <h3>Vencidos</h3>
+        <h2>{{expiredCount}}</h2>
+      </ion-card-content>
+    </ion-card>
+  </div>
+  
+  <!-- Lista de carnets -->
+  <ion-list>
+    <ion-item *ngFor="let carnet of carnets" [routerLink]="['/admin/carnets', carnet.id]">
+      <ion-label>
+        <h2>{{carnet.clienteNombre}}</h2>
+        <p>{{carnet.tipo}} • {{carnet.fechaInicio | date:'dd/MM/yyyy'}} - {{carnet.fechaFin | date:'dd/MM/yyyy'}}</p>
+        <p>
+          <ion-badge [color]="getCarnetStatusColor(carnet.estado)">{{carnet.estado}}</ion-badge>
+          <ion-badge color="medium">{{carnet.clasesDisponibles}} clases</ion-badge>
+        </p>
+      </ion-label>
+      <ion-note slot="end">
+        {{getDaysRemaining(carnet.fechaFin)}} días
+      </ion-note>
+    </ion-item>
+  </ion-list>
+</ion-content>

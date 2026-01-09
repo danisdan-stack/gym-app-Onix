@@ -1,0 +1,179 @@
+// src/app/pages/pagos/pagos.page.scss
+.stats-container {
+  padding: 16px;
+  
+  .stat-card {
+    border-radius: 12px;
+    padding: 16px;
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    
+    ion-icon {
+      font-size: 28px;
+    }
+    
+    .stat-info {
+      h3 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: bold;
+      }
+      
+      p {
+        margin: 4px 0 0;
+        opacity: 0.9;
+        font-size: 14px;
+      }
+    }
+    
+    &.total {
+      background: linear-gradient(135deg, #3880ff, #2a5db0);
+    }
+    
+    &.success {
+      background: linear-gradient(135deg, #2dd36f, #28ba62);
+    }
+    
+    &.warning {
+      background: linear-gradient(135deg, #ffc409, #e6ac00);
+    }
+    
+    &.danger {
+      background: linear-gradient(135deg, #eb445a, #cf3c4f);
+    }
+  }
+}
+
+.filters-container {
+  margin-top: 16px;
+}
+
+// Estilos para items según estado
+.al-dia-item {
+  --background: rgba(45, 211, 111, 0.05);
+  border-left: 4px solid #2dd36f;
+}
+
+.retraso-leve-item {
+  --background: rgba(255, 196, 9, 0.05);
+  border-left: 4px solid #ffc409;
+}
+
+.retraso-severo-item {
+  --background: rgba(235, 68, 90, 0.05);
+  border-left: 4px solid #eb445a;
+}
+
+// Avatar
+ion-avatar {
+  width: 48px;
+  height: 48px;
+  
+  .avatar-initials {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ion-color-primary);
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    border-radius: 50%;
+  }
+}
+
+// Información del cliente
+.client-detail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  font-size: 14px;
+  color: var(--ion-color-medium);
+  
+  ion-icon {
+    font-size: 16px;
+  }
+  
+  .whatsapp-link {
+    color: #25D366;
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+  
+  .no-phone {
+    color: var(--ion-color-medium);
+    font-style: italic;
+  }
+}
+
+.status-badge {
+  margin-top: 8px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.clickable {
+  cursor: pointer;
+  
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+// Loading
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  
+  ion-spinner {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 16px;
+  }
+  
+  p {
+    color: var(--ion-color-medium);
+  }
+}
+
+// Estado vacío
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  
+  ion-icon {
+    font-size: 64px;
+    color: var(--ion-color-medium);
+    margin-bottom: 16px;
+  }
+  
+  h3 {
+    color: var(--ion-color-medium);
+    margin: 0 0 8px 0;
+  }
+  
+  p {
+    color: var(--ion-color-medium-shade);
+    margin: 0 0 16px 0;
+  }
+}

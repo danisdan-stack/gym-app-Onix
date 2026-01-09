@@ -23,7 +23,8 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "twilio": "^5.11.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

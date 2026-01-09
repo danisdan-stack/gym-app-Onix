@@ -4,7 +4,10 @@ import {
   registrarCliente, 
   listarClientes, 
   obtenerCliente,
-  actualizarCliente 
+  actualizarCliente ,
+  registrarClienteRapido,
+   listarClientesSimplificado, 
+   listarClientesConCarnet,
 } from '../controllers/cliente.controller';
 
 const router = Router();
@@ -20,5 +23,17 @@ router.get('/:id', obtenerCliente);
 
 // PUT /api/clientes/:id - Actualizar cliente
 router.put('/:id', actualizarCliente);
+
+router.post('/rapido', registrarClienteRapido);   
+
+router.get('/simplificado/listar', listarClientesSimplificado);
+
+router.get('/clientes-con-carnet', listarClientesConCarnet);
+
+// GET /api/clientes/simplificado - Listar clientes simplificado
+router.get('/simplificado', listarClientesSimplificado); // Cambiado
+
+// GET /api/clientes/con-carnet - Listar clientes con carnet activo
+router.get('/con-carnet', listarClientesConCarnet); // Cambiado
 
 export default router;

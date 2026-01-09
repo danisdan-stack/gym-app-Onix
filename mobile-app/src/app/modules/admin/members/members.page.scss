@@ -1,0 +1,59 @@
+.loading-container, .error-container, .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  text-align: center;
+  padding: 20px;
+}
+
+.stats-container {
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+}
+
+.stat-item {
+  flex: 1;
+}
+
+.stat-item h3 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--ion-color-primary);
+}
+
+.stat-item p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ion-color-medium);
+}
+
+.whatsapp-link {
+  margin: 6px 0;
+}
+
+.whatsapp-number {
+  text-decoration: none;
+  color: var(--ion-color-success);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.whatsapp-number:hover {
+  text-decoration: underline;
+}
+
+.dates {
+  font-size: 12px;
+  color: var(--ion-color-medium);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}

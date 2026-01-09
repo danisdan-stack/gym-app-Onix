@@ -1,0 +1,103 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/clientes"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Nuevo Cliente</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="ion-text-center ion-margin-vertical">
+    <h2>Registro</h2>
+    <p>Datos requeridos</p>
+    
+    <ion-chip color="success" class="ion-margin-top">
+      <ion-icon name="cash" slot="start"></ion-icon>
+      <ion-label>Membresía: $24,000</ion-label>
+    </ion-chip>
+  </div>
+
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>Datos del Cliente</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <form (ngSubmit)="crearCliente()" #clienteForm="ngForm">
+        <!-- Nombre -->
+        <ion-item class="ion-margin-bottom">
+          <ion-label position="stacked">Nombre *</ion-label>
+          <ion-input 
+            [(ngModel)]="cliente.nombre" 
+            name="nombre" 
+            required
+            placeholder="Ej: Juan"
+            autocomplete="off"
+            autocapitalize="words"
+          ></ion-input>
+        </ion-item>
+
+        <!-- Apellido -->
+        <ion-item class="ion-margin-bottom">
+          <ion-label position="stacked">Apellido *</ion-label>
+          <ion-input 
+            [(ngModel)]="cliente.apellido" 
+            name="apellido" 
+            required
+            placeholder="Ej: Pérez"
+            autocomplete="off"
+            autocapitalize="words"
+          ></ion-input>
+        </ion-item>
+
+        <!-- Celular -->
+        <ion-item class="ion-margin-bottom">
+          <ion-label position="stacked">Celular *</ion-label>
+          <ion-input 
+            [(ngModel)]="cliente.celular" 
+            name="celular" 
+            type="tel"
+            required
+            placeholder="10 dígitos, ej: 5512345678"
+            pattern="[0-9]{10}"
+            maxlength="10"
+            minlength="10"
+            autocomplete="off"
+            inputmode="numeric"
+          ></ion-input>
+        </ion-item>
+
+        <!-- Información del monto -->
+        <div class="monto-info ion-text-center ion-padding">
+          <ion-text color="primary">
+            <h3>💳 Monto a pagar: $24,000.00</h3>
+            <p><small>Membresía • Pago Mensual</small></p>
+          </ion-text>
+        </div>
+
+        <!-- Botón Crear -->
+        <ion-button 
+          expand="block" 
+          type="submit" 
+          color="primary" 
+          class="ion-margin-top"
+          [disabled]="loading || !clienteForm.form.valid"
+          size="large"
+        >
+          <ion-spinner *ngIf="loading" name="crescent"></ion-spinner>
+          <ion-icon *ngIf="!loading" slot="start" name="checkmark-circle"></ion-icon>
+          {{ loading ? 'Creando...' : 'Crear Cliente ($24,000)' }}
+        </ion-button>
+      </form>
+    </ion-card-content>
+  </ion-card>
+</ion-content>
+
+<!-- Toast para mensajes -->
+<ion-toast
+  [isOpen]="showToast"
+  [message]="toastMessage"
+  [color]="toastColor"
+  [duration]="3000"
+  (didDismiss)="showToast = false"
+></ion-toast>

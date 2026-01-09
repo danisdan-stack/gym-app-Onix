@@ -1,0 +1,67 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Reportes y Estadísticas</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <h2>Generar Reportes</h2>
+  
+  <ion-list>
+    <!-- Reporte de ingresos -->
+    <ion-item (click)="generateIncomeReport()">
+      <ion-icon name="cash" slot="start" color="success"></ion-icon>
+      <ion-label>
+        <h3>Reporte de Ingresos</h3>
+        <p>Ingresos mensuales y tendencias</p>
+      </ion-label>
+      <ion-icon name="download" slot="end"></ion-icon>
+    </ion-item>
+    
+    <!-- Reporte de clientes -->
+    <ion-item (click)="generateClientReport()">
+      <ion-icon name="people" slot="start" color="primary"></ion-icon>
+      <ion-label>
+        <h3>Reporte de Clientes</h3>
+        <p>Estadísticas de clientes activos/inactivos</p>
+      </ion-label>
+      <ion-icon name="download" slot="end"></ion-icon>
+    </ion-item>
+    
+    <!-- Reporte de asistencia -->
+    <ion-item (click)="generateAttendanceReport()">
+      <ion-icon name="calendar" slot="start" color="warning"></ion-icon>
+      <ion-label>
+        <h3>Reporte de Asistencia</h3>
+        <p>Frecuencia y horarios de asistencia</p>
+      </ion-label>
+      <ion-icon name="download" slot="end"></ion-icon>
+    </ion-item>
+    
+    <!-- Reporte de carnets -->
+    <ion-item (click)="generateCarnetReport()">
+      <ion-icon name="id-card" slot="start" color="danger"></ion-icon>
+      <ion-label>
+        <h3>Reporte de Carnets</h3>
+        <p>Carnets activos, por vencer y vencidos</p>
+      </ion-label>
+      <ion-icon name="download" slot="end"></ion-icon>
+    </ion-item>
+  </ion-list>
+  
+  <!-- Filtros de fecha -->
+  <div class="date-filters">
+    <h3>Personalizar Rango de Fechas</h3>
+    <ion-item>
+      <ion-label>Desde:</ion-label>
+      <ion-datetime displayFormat="DD/MM/YYYY" [(ngModel)]="startDate"></ion-datetime>
+    </ion-item>
+    <ion-item>
+      <ion-label>Hasta:</ion-label>
+      <ion-datetime displayFormat="DD/MM/YYYY" [(ngModel)]="endDate"></ion-datetime>
+    </ion-item>
+    <ion-button expand="block" (click)="generateCustomReport()">
+      Generar Reporte Personalizado
+    </ion-button>
+  </div>
+</ion-content>
