@@ -142,29 +142,8 @@ export class PagosPage implements OnInit {
     // O si quieres a la raíz:
     // this.router.navigate(['/']);
   }
- cargarClientes() {
-  this.isLoading = true;
-  
-  // URL CORRECTA que ya funciona
-  const url = 'http://localhost:3000/api/clientes';
-  
-  this.http.get<any>(url).subscribe({
-    next: (response) => {
-      if (response.success && response.data) {
-        this.clientes = response.data;
-        this.filteredClientes = [...this.clientes];
-        this.calcularEstadisticas();
-      }
-      this.isLoading = false;
-    },
-    error: (error) => {
-      console.error('Error:', error);
-      this.clientes = [];
-      this.isLoading = false;
-    }
-  });
-}
-procesarClientes() {
+
+ procesarClientes() {
   // Adapta los datos de la API a tu interfaz
   this.clientes = this.clientes.map(cliente => {
     // 1. COMBINAR NOMBRE Y APELLIDO CORRECTAMENTE
@@ -203,16 +182,27 @@ procesarClientes() {
     let diasRetraso = cliente.dias_retraso || 0;
     
     // 4. VALOR POR DEFECTO DE MENSUALIDAD
-    const mensualidad = cliente.mensualidad || 500; // Valor por defecto
+    const mensualidad = cliente.mensualidad || 500;
     
     // 5. TELÉFONO FORMATEADO
     const telefono = cliente.telefono || 'Sin teléfono';
     
+    // 6. EXTRAER FECHA DE CREACIÓN - ¡ESTO ES CLAVE!
+    // Busca en todos los campos posibles de fecha
+    const fechaCreacion = cliente.fecha_creacion || cliente.created_at || cliente.fecha_registro || cliente.fecha_alta;
+    
+    // 7. Calcular timestamp para ordenamiento fácil
+    const timestampCreacion = fechaCreacion ? new Date(fechaCreacion).getTime() : 0;
+    
     return {
+      // Campos originales para ordenamiento
+      ...cliente, // ← MANTIENE los campos originales
+      
+      // Campos procesados
       id: cliente.id || cliente.usuario_id,
       nombre: nombre,
       apellido: apellido,
-      nombre_completo: nombreCompleto, // ✅ AQUÍ ESTÁ EL NOMBRE COMPLETO
+      nombre_completo: nombreCompleto,
       telefono: telefono,
       email: cliente.email,
       mensualidad: mensualidad,
@@ -224,13 +214,103 @@ procesarClientes() {
       fecha_ultimo_pago: cliente.fecha_ultimo_pago,
       fecha_vencimiento: cliente.fecha_vencimiento,
       fecha_vencimiento_formatted: cliente.fecha_vencimiento_formatted,
+      
+      // FECHAS CRÍTICAS - Asegurar que están presentes
+      fecha_creacion: fechaCreacion, // Campo unificado
+      timestamp_creacion: timestampCreacion, // Para ordenar fácil
+      
       carnet_url: cliente.carnet_url,
       whatsapp_link: cliente.whatsapp_link,
       avatar: cliente.avatar || 'https://ionicframework.com/docs/img/demos/avatar.svg'
     };
   });
   
-  console.log('✅ Clientes procesados:', this.clientes);
+  console.log('✅ Clientes procesados (listos para ordenar)');
+}
+
+cargarClientes() {
+  this.isLoading = true;
+  
+  // URL CORRECTA que ya funciona
+  const url = 'http://localhost:3000/api/clientes';
+  
+  this.http.get<any>(url).subscribe({
+    next: (response) => {
+      if (response.success && response.data) {
+        // 1. Asignar datos crudos del API
+        this.clientes = response.data;
+        
+        console.log('📥 Datos crudos recibidos:', this.clientes.length, 'clientes');
+        
+        // 2. Procesar los datos (transformar campos, extraer fechas)
+        this.procesarClientes();
+        
+        // 3. AHORA ordenar DESPUÉS de procesar
+        console.log('🔄 Ordenando clientes procesados...');
+        
+        this.clientes.sort((a, b) => {
+          // OPCIÓN 1: Usar timestamp_creacion si existe (más eficiente)
+          if (a.timestamp_creacion && b.timestamp_creacion) {
+            // Más nuevo primero: b.timestamp - a.timestamp
+            return b.timestamp_creacion - a.timestamp_creacion;
+          }
+          
+          // OPCIÓN 2: Usar fecha_creacion (string a Date)
+          if (a.fecha_creacion && b.fecha_creacion) {
+            const fechaA = new Date(a.fecha_creacion).getTime();
+            const fechaB = new Date(b.fecha_creacion).getTime();
+            return fechaB - fechaA; // Más nuevo primero
+          }
+          
+          // OPCIÓN 3: Usar campos originales de fecha si no están en fecha_creacion
+          const getFechaTimestamp = (cliente: any) => {
+            // Buscar en varios campos posibles
+            if (cliente.timestamp_creacion) return cliente.timestamp_creacion;
+            if (cliente.fecha_creacion) return new Date(cliente.fecha_creacion).getTime();
+            if (cliente.created_at) return new Date(cliente.created_at).getTime();
+            if (cliente.fecha_registro) return new Date(cliente.fecha_registro).getTime();
+            if (cliente.fecha_alta) return new Date(cliente.fecha_alta).getTime();
+            return 0;
+          };
+          
+          const timestampA = getFechaTimestamp(a);
+          const timestampB = getFechaTimestamp(b);
+          
+          if (timestampA > 0 && timestampB > 0) {
+            return timestampB - timestampA; // Más nuevo primero
+          }
+          
+          // OPCIÓN 4: Último recurso - ordenar por ID (asumiendo auto-increment)
+          // IDs más altos = más nuevos
+          const idA = Number(a.id) || 0;
+          const idB = Number(b.id) || 0;
+          
+          return idB - idA; // ID más alto primero
+        });
+        
+        // 4. Verificar el orden
+        console.log('📋 Primeros 5 clientes (más nuevos primero):');
+        this.clientes.slice(0, 5).forEach((cliente, index) => {
+          console.log(`${index + 1}. ${cliente.nombre_completo} - ID: ${cliente.id} - Fecha: ${cliente.fecha_creacion || 'Sin fecha'}`);
+        });
+        
+        // 5. Copiar a filteredClientes
+        this.filteredClientes = [...this.clientes];
+        
+        // 6. Calcular estadísticas
+        this.calcularEstadisticas();
+        
+        console.log(`✅ Carga completada: ${this.clientes.length} clientes ordenados`);
+      }
+      this.isLoading = false;
+    },
+    error: (error) => {
+      console.error('Error:', error);
+      this.clientes = [];
+      this.filteredClientes = [];
+      this.isLoading = false;
+    }
+  });
 }
   calcularEstadisticas() {
   this.totalClientes = this.clientes.length;
@@ -330,13 +410,17 @@ procesarClientes() {
       `El número ${cliente.telefono} no es válido para WhatsApp.`
     );
     return;
+    
   }
   
   console.log('✅ Número formateado:', numeroWhatsApp);
   
   // Crear mensaje personalizado
   const nombre = cliente.nombre || cliente.nombre_completo || 'Cliente';
-  const mensaje = `Hola ${nombre}, te contacto desde el gimnasio. ¡Buen día!`;
+  const hoy = new Date();
+  const mesActual = hoy.getMonth() + 1; // Enero = 1
+  const mesNombre = this.getNombreMes(mesActual);
+  const mensaje = `Hola ${nombre}, te enviamos el carnet de pago del mes de ${mesNombre}. ¡Nos vemos en el gimnasio!`;
   const mensajeCodificado = encodeURIComponent(mensaje);
   
   // Construir URL de WhatsApp
@@ -352,125 +436,438 @@ procesarClientes() {
 formatearNumeroWhatsApp(telefono: string): string {
   if (!telefono) return '';
   
-  // Convertir a string si no lo es
-  const telefonoStr = telefono.toString();
+  // 1. Solo números
+  let numero = telefono.toString().replace(/\D/g, '');
   
-  // Remover todo excepto números
-  let numeroLimpio = telefonoStr.replace(/\D/g, '');
-  
-  // Verificar que tenga al menos 8 dígitos (número local mínimo)
-  if (numeroLimpio.length < 8) {
-    console.error('Número muy corto:', numeroLimpio);
-    return '';
+  // 2. Si ya tiene 13 dígitos y empieza con 54, usarlo
+  if (numero.length === 13 && numero.startsWith('54')) {
+    return numero;
   }
   
-  // PARA ARGENTINA 🇦🇷:
-  // Formato esperado: 549XXXXXXXXX (54 código país, 9 dígitos del número)
-  
-  // Si empieza con 0 (ej: 01112345678)
-  if (numeroLimpio.startsWith('0')) {
-    numeroLimpio = '54' + numeroLimpio.substring(1);
+  // 3. Si tiene 10 dígitos, asumir que es 11 + número (Buenos Aires)
+  if (numero.length === 10) {
+    return '54911' + numero;
   }
   
-  // Si tiene 10 dígitos y no empieza con 54 (ej: 1134567890)
-  else if (numeroLimpio.length === 10 && !numeroLimpio.startsWith('54')) {
-    // Ej: 1134567890 -> 5491134567890
-    numeroLimpio = '549' + numeroLimpio;
+  // 4. Si tiene 11 dígitos y empieza con 9 (ej: 91123456677)
+  if (numero.length === 11 && numero.startsWith('9')) {
+    return '54' + numero;
   }
   
-  // Si tiene 9 dígitos (ej: 934567890)
-  else if (numeroLimpio.length === 9) {
-    numeroLimpio = '549' + numeroLimpio;
+  // 5. Si tiene 8-9 dígitos, agregar 54911
+  if (numero.length >= 8 && numero.length <= 9) {
+    return '54911' + numero;
   }
   
-  // Si ya empieza con 54 pero le falta el 9 (ej: 54112345678)
-  else if (numeroLimpio.startsWith('54') && numeroLimpio.length === 11) {
-    // 54112345678 -> 549112345678
-    numeroLimpio = '549' + numeroLimpio.substring(2);
-  }
-  
-  console.log('🔄 Número formateado:', numeroLimpio, 'de', telefono);
-  return numeroLimpio;
+  // 6. Si no coincide con nada, devolver vacío
+  return '';
 }
 
 
  
-  // ✅ FUNCIÓN SIMPLE: Registrar pago sin modal
-  async registrarPago(cliente: any) {
-    const alert = await this.alertController.create({
-      header: 'Registrar Pago',
-      message: `¿Registrar pago para ${cliente.nombre_completo}?`,
-      buttons: [
-        { 
-          text: 'Cancelar', 
-          role: 'cancel' 
-        },
-        { 
-          text: 'Registrar Pago', 
-          handler: () => this.confirmarPago(cliente)
-        }
-      ]
-    });
+// VERSIÓN CORREGIDA - SIN HTML EN EL MESSAGE
+async confirmarPago(cliente: any) {
+  const loading = await this.loadingController.create({
+    message: 'Registrando pago...'
+  });
+  
+  try {
+    await loading.present();
     
-    await alert.present();
-  }
+    const clienteId = cliente.id || cliente.usuario_id;
+    const hoy = new Date();
+    const mesActual = hoy.getMonth() + 1;
+    const añoActual = hoy.getFullYear();
+    const mesNombre = this.getNombreMes(mesActual);
+    
+    const pagoData = {
+      cliente_id: clienteId,
+      mes: mesActual,
+      año: añoActual,
+      monto: 24000,
+      metodo: 'efectivo'
+    };
+    
+    console.log('📤 Enviando pago:', pagoData);
+    const url = 'http://localhost:3000/api/pagos/cliente';
+    const response: any = await lastValueFrom(this.http.post(url, pagoData));
+    
+    await loading.dismiss();
+    
+    if (response.success) {
+      console.log('✅ Pago registrado:', response.data);
+      
+      // ✅ ALERTA CON TEXTO PLANO - SIN HTML
+      const successAlert = await this.alertController.create({
+        header: '✅ PAGO REGISTRADO',
+        subHeader: 'Comprobante generado exitosamente',
+        message: `
+Cliente: ${cliente.nombre_completo}
+Monto: $${pagoData.monto.toLocaleString()}
+Período: ${mesNombre} ${añoActual}
+Método: ${pagoData.metodo.toUpperCase()}
 
-  // ✅ FUNCIÓN PARA CONFIRMAR Y ENVIAR PAGO
-  async confirmarPago(cliente: any) {
-    const loading = await this.loadingController.create({
-      message: 'Registrando pago...'
-    });
-    
-    try {
-      await loading.present();
-      
-      // Datos fijos: mes actual, $24,000, efectivo
-      const data = {
-        cliente_id: cliente.id,
-        mes: new Date().getMonth() + 1,
-        año: new Date().getFullYear(),
-        monto: 24000,
-        metodo: 'efectivo'
-      };
-      
-      const response: any = await this.http.post('/api/pagos/cliente', data).toPromise();
-      
-      if (response.success) {
-        await loading.dismiss();
-        
-        // Preguntar si quiere abrir WhatsApp
-        const successAlert = await this.alertController.create({
-          header: '✅ Pago Registrado',
-          message: `Pago registrado para ${cliente.nombre_completo}`,
-          buttons: [
-            { 
-              text: 'Enviar WhatsApp', 
-              handler: () => {
-                if (response.data.whatsapp_link) {
-                  window.open(response.data.whatsapp_link, '_blank');
-                }
-                // Recargar la lista después
-                this.cargarClientes();
-              }
-            },
-            { 
-              text: 'OK', 
-              handler: () => {
-                // Recargar la lista
-                this.cargarClientes();
-              }
+✅ Carnet generado y listo para enviar
+ID Transacción: ${response.data.pago?.id || 'N/A'}
+        `,
+        cssClass: 'pago-exitoso-alert',
+        buttons: [
+          {
+            text: '📱 WhatsApp',
+            cssClass: 'whatsapp-button',
+            handler: () => {
+              this.enviarComprobanteWhatsApp(cliente, response.data);
+              this.cargarClientes();
             }
-          ]
-        });
-        
-        await successAlert.present();
-      }
-    } catch (error: any) {
-      await loading.dismiss();
-      console.error('Error registrando pago:', error);
-      this.mostrarAlerta('Error', 'No se pudo registrar el pago');
+          },
+          {
+            text: '📄 Ver Carnet',
+            cssClass: 'carnet-button',
+            handler: () => {
+              if (response.data.carnet?.url) {
+                const carnetUrl = `http://localhost:3000${response.data.carnet.url}`;
+                window.open(carnetUrl, '_blank');
+              }
+              this.cargarClientes();
+            }
+          },
+          {
+            text: '✅ Listo',
+            cssClass: 'listo-button',
+            role: 'cancel',
+            handler: () => {
+              this.cargarClientes();
+            }
+          }
+        ]
+      });
+      
+      await successAlert.present();
+      
+      setTimeout(() => {
+        this.cargarClientes();
+      }, 1000);
+      
+    } else {
+      await this.mostrarAlertaSimple('Error', response.message || 'No se pudo registrar el pago');
+    }
+    
+  } catch (error: any) {
+    await loading.dismiss();
+    console.error('❌ Error:', error);
+    
+    // Manejo de error de duplicado
+    if (error.error?.error?.includes('duplicada')) {
+      await this.mostrarAlertaClienteAlDiaSimple(cliente);
+    } else {
+      await this.mostrarAlertaSimple('Error', 'No se pudo registrar el pago');
     }
   }
+}
+
+// ✅ ALERTA SIMPLE PARA ERRORES
+async mostrarAlertaSimple(titulo: string, mensaje: string) {
+  const alert = await this.alertController.create({
+    header: titulo,
+    message: mensaje,
+    buttons: ['OK']
+  });
+  
+  await alert.present();
+}
+
+// ✅ ALERTA SIMPLE PARA CLIENTE AL DÍA
+async mostrarAlertaClienteAlDiaSimple(cliente: any) {
+  const hoy = new Date();
+  const mesNombre = this.getNombreMes(hoy.getMonth() + 1);
+  const añoActual = hoy.getFullYear();
+  
+  const alert = await this.alertController.create({
+    header: '✅ CLIENTE AL DÍA',
+    message: `
+${cliente.nombre_completo}
+
+Ya tiene registrado el pago para:
+${mesNombre} ${añoActual}
+
+El sistema protege al cliente evitando cobros duplicados.
+
+Estado: ${cliente.estado_texto || 'Al Día'}
+Último pago: ${cliente.fecha_ultimo_pago || 'Reciente'}
+    `,
+    buttons: [
+     
+      {
+        text: 'Cerrar',
+        role: 'cancel'
+      }
+    ]
+  });
+  
+  await alert.present();
+}
+
+// ✅ MÉTODO MEJORADO PARA ALERTA DE ÉXITO
+async mostrarAlertaExito(cliente: any, pagoData: any, responseData: any) {
+  const alert = await this.alertController.create({
+    header: '🎉 PAGO EXITOSO',
+    subHeader: 'Comprobante generado',
+    message: `
+      <div class="alert-success-container">
+        <div class="alert-header-success">
+          <ion-icon name="checkmark-circle" class="success-icon"></ion-icon>
+          <h3>¡PAGO REGISTRADO!</h3>
+        </div>
+        
+        <div class="alert-info-card">
+          <div class="info-row">
+            <ion-icon name="person-outline" class="info-icon"></ion-icon>
+            <div class="info-content">
+              <span class="info-label">Cliente</span>
+              <span class="info-value">${cliente.nombre_completo}</span>
+            </div>
+          </div>
+          
+          <div class="info-row">
+            <ion-icon name="calendar-outline" class="info-icon"></ion-icon>
+            <div class="info-content">
+              <span class="info-label">Período</span>
+              <span class="info-value">${this.getNombreMes(pagoData.mes)} ${pagoData.año}</span>
+            </div>
+          </div>
+          
+          <div class="info-row">
+            <ion-icon name="cash-outline" class="info-icon"></ion-icon>
+            <div class="info-content">
+              <span class="info-label">Monto</span>
+              <span class="info-value success-amount">$${pagoData.monto.toLocaleString()}</span>
+            </div>
+          </div>
+          
+          <div class="info-row">
+            <ion-icon name="card-outline" class="info-icon"></ion-icon>
+            <div class="info-content">
+              <span class="info-label">Método</span>
+              <span class="info-value">${pagoData.metodo.toUpperCase()}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="alert-status-success">
+          <ion-icon name="document-text-outline" class="status-icon"></ion-icon>
+          <span>Carnet generado y listo para enviar</span>
+        </div>
+        
+        <div class="alert-footer">
+          <ion-icon name="information-circle-outline"></ion-icon>
+          <small>ID Transacción: ${responseData.pago?.id || 'N/A'}</small>
+        </div>
+      </div>
+    `,
+    cssClass: 'pago-exitoso-alert',
+    buttons: [
+      {
+        text: '📱 WhatsApp',
+        cssClass: 'whatsapp-button',
+        handler: () => {
+          this.enviarComprobanteWhatsApp(cliente, responseData);
+          this.cargarClientes();
+        }
+      },
+      {
+        text: '📄 Ver Carnet',
+        cssClass: 'carnet-button',
+        handler: () => {
+          if (responseData.carnet?.url) {
+            const carnetUrl = `http://localhost:3000${responseData.carnet.url}`;
+            window.open(carnetUrl, '_blank');
+          }
+          this.cargarClientes();
+        }
+      },
+      {
+        text: '✅ Listo',
+        cssClass: 'listo-button',
+        role: 'cancel',
+        handler: () => {
+          this.cargarClientes();
+        }
+      }
+    ]
+  });
+  
+  await alert.present();
+}
+
+// ✅ MÉTODO MEJORADO PARA CLIENTE AL DÍA (DUPLICADO)
+async mostrarAlertaClienteAlDia(cliente: any) {
+  const hoy = new Date();
+  const mesNombre = this.getNombreMes(hoy.getMonth() + 1);
+  const añoActual = hoy.getFullYear();
+  
+  const alert = await this.alertController.create({
+    header: '✅ CLIENTE AL DÍA',
+    subHeader: 'Pago ya registrado',
+    message: `
+      <div class="alert-success-container">
+        <div class="alert-header-al-dia">
+          <ion-icon name="shield-checkmark" class="al-dia-icon"></ion-icon>
+          <h3>¡CLIENTE AL CORRIENTE!</h3>
+        </div>
+        
+        <div class="alert-info-card">
+          <div class="info-row-center">
+            <ion-icon name="checkmark-done" class="info-icon-success"></ion-icon>
+            <div class="info-content-center">
+              <span><strong>${cliente.nombre_completo}</strong></span>
+              <span class="info-subtitle">Ya tiene pago registrado para</span>
+              <span class="info-period">${mesNombre} ${añoActual}</span>
+            </div>
+          </div>
+          
+          <div class="alert-info-box">
+            <ion-icon name="information-circle" class="info-box-icon"></ion-icon>
+            <small>El sistema protege al cliente evitando cobros duplicados</small>
+          </div>
+        </div>
+        
+        <div class="alert-tags">
+          <div class="info-tag">
+            <ion-icon name="calendar-outline"></ion-icon>
+            <span>${cliente.estado_texto || 'Al Día'}</span>
+          </div>
+          <div class="info-tag">
+            <ion-icon name="time-outline"></ion-icon>
+            <span>Último pago: ${cliente.fecha_ultimo_pago || 'Reciente'}</span>
+          </div>
+        </div>
+      </div>
+    `,
+    cssClass: 'cliente-al-dia-alert',
+    buttons: [
+      
+      {
+        text: 'Cerrar',
+        role: 'cancel',
+        cssClass: 'cerrar-button'
+      }
+    ]
+  });
+  
+  await alert.present();
+}
+
+// ✅ MÉTODO MEJORADO PARA ERROR GENERAL
+async mostrarAlertaError(mensaje: string) {
+  const alert = await this.alertController.create({
+    header: '⚠️ ERROR',
+    message: `
+      <div class="alert-error-container">
+        <div class="alert-header-error">
+          <ion-icon name="alert-circle" class="error-icon"></ion-icon>
+          <h3>OPERACIÓN FALLIDA</h3>
+        </div>
+        
+        <div class="alert-error-message">
+          <ion-icon name="warning-outline" class="warning-icon"></ion-icon>
+          <p>${mensaje}</p>
+        </div>
+        
+        <div class="alert-suggestion">
+          <small>
+            <ion-icon name="bulb-outline"></ion-icon>
+            Verifica la conexión e intenta nuevamente
+          </small>
+        </div>
+      </div>
+    `,
+    cssClass: 'error-alert',
+    buttons: ['OK']
+  });
+  
+  await alert.present();
+}
+
+// Método auxiliar para obtener nombre del mes
+getNombreMes(mesNumero: number): string {
+  const meses = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  return meses[mesNumero - 1] || '';
+}
+
+// Método para enviar comprobante por WhatsApp
+async enviarComprobanteWhatsApp(cliente: any, pagoData?: any) {
+  console.log('📱 Enviando comprobante por WhatsApp...');
+  
+  if (!cliente.telefono) {
+    await this.mostrarAlerta(
+      'Sin teléfono', 
+      `${cliente.nombre_completo} no tiene número de teléfono registrado.`
+    );
+    return;
+  }
+  
+  // Formatear número para WhatsApp
+  const numeroWhatsApp = this.formatearNumeroWhatsApp(cliente.telefono);
+  
+  if (!numeroWhatsApp) {
+    await this.mostrarAlerta(
+      'Número inválido', 
+      `El número ${cliente.telefono} no es válido para WhatsApp.`
+    );
+    return;
+  }
+  
+  // Crear mensaje personalizado
+  const nombre = cliente.nombre || cliente.nombre_completo || 'Cliente';
+  const fecha = new Date().toLocaleDateString('es-AR');
+  const monto = pagoData.pago?.monto || 24000;
+  const mesNombre = this.getNombreMes(pagoData.pago?.mes || new Date().getMonth() + 1);
+  const año = pagoData.pago?.año || new Date().getFullYear();
+  
+  let mensaje = `¡Hola ${nombre}! 👋\n\n`;
+  mensaje += `✅ *COMPROBANTE DE PAGO*\n\n`;
+  mensaje += `🏋️ *Gimnasio Onix*\n`;
+  mensaje += `👤 *Cliente:* ${cliente.nombre_completo}\n`;
+  mensaje += `💰 *Monto:* $${monto.toLocaleString()}\n`;
+  mensaje += `📅 *Período:* ${mesNombre} ${año}\n`;
+  mensaje += `🏷️ *Método:* Efectivo\n`;
+  mensaje += `📋 *Estado:* Pagado ✅\n\n`;
+  
+  // Agregar enlace al carnet si está disponible
+  if (pagoData.carnet?.url) {
+    const carnetUrl = `http://localhost:3000${pagoData.carnet.url}`;
+    mensaje += `🎫 *Tu carnet actualizado:*\n`;
+    mensaje += `${carnetUrl}\n\n`;
+  }
+  
+  mensaje += `¡Gracias por tu pago puntual! 💪\n`;
+  mensaje += `_Mensaje automático - Onix Gym_`;
+  
+  const mensajeCodificado = encodeURIComponent(mensaje);
+  
+  // Construir URL de WhatsApp
+  const urlWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${mensajeCodificado}`;
+  
+  console.log('🔗 URL WhatsApp:', urlWhatsApp);
+  
+  // Abrir WhatsApp en nueva pestaña
+  window.open(urlWhatsApp, '_blank', 'noopener,noreferrer');
+  
+  // Recargar lista después de enviar
+  setTimeout(() => {
+    this.cargarClientes();
+  }, 1500);
+}
+
+// método registrarPago para que use confirmarPago
+async registrarPago(cliente: any) {
+     await this.confirmarPago(cliente);
+}
+  
+  
 
   verCarnet(cliente: any) {
     if (cliente.carnet_url) {
@@ -481,22 +878,31 @@ formatearNumeroWhatsApp(telefono: string): string {
     }
   }
 
-  async verDetalles(cliente: any) {
+  /*async verDetalles(cliente: any) {
     const alert = await this.alertController.create({
       header: cliente.nombre_completo,
-      message: `
-        <p><strong>Teléfono:</strong> ${cliente.telefono || 'No registrado'}</p>
-        <p><strong>Estado:</strong> ${this.getTextoEstado(cliente.estado_pago)}</p>
-        <p><strong>Días de retraso:</strong> ${cliente.dias_retraso}</p>
-        <p><strong>Fecha vencimiento:</strong> ${cliente.fecha_vencimiento_formatted}</p>
-        <p><strong>Último pago:</strong> ${cliente.estado_ultimo_pago}</p>
-      `,
+       
       buttons: [
         { text: 'Cerrar', role: 'cancel' },
         { 
-          text: 'Ver Carnet', 
-          handler: () => this.verCarnet(cliente)
-        },
+        text: '📄 Ver Carnet', 
+        cssClass: 'ver-carnet-button',
+        handler: () => {
+          // ✅ MISMA LÓGICA QUE FUNCIONA
+          if (cliente.carnet_url) {
+            const carnetUrl = `http://localhost:3000${cliente.carnet_url}`;
+            console.log('🔗 Abriendo carnet:', carnetUrl);
+            window.open(carnetUrl, '_blank');
+          } else {
+            // Si no tiene carnet_url, mostrar mensaje
+            this.mostrarAlerta(
+              'Sin Carnet',
+              `${cliente.nombre_completo} no tiene carnet generado.\n\nRegistra un pago para generar el carnet.`
+            );
+          }
+          return false; // No cierra el alert inmediatamente
+        }
+      },
         { 
           text: 'Registrar Pago', 
           handler: () => this.registrarPago(cliente)
@@ -505,7 +911,7 @@ formatearNumeroWhatsApp(telefono: string): string {
     });
     
     await alert.present();
-  }
+  }*/
 
   async refrescar() {
     await this.cargarClientes();

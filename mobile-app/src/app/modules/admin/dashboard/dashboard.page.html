@@ -72,24 +72,6 @@
           </ion-card>
         </ion-col>
 
-        <!-- Carnets Activos -->
-        <ion-col size="12" size-md="6" size-lg="3">
-          <ion-card button (click)="goToCarnets()" class="stat-card">
-            <ion-card-content>
-              <div class="stat-content">
-                <div class="stat-icon warning">
-                  <ion-icon name="id-card"></ion-icon>
-                </div>
-                <div class="stat-info">
-                  <h2>{{stats.carnetsActivos || 0}}</h2>
-                  <p>Carnets Activos</p>
-                  <ion-badge color="success">Válidos</ion-badge>
-                </div>
-              </div>
-            </ion-card-content>
-          </ion-card>
-        </ion-col>
-
         <!-- Asistencia Hoy -->
         <ion-col size="12" size-md="6" size-lg="3">
           <ion-card class="stat-card">

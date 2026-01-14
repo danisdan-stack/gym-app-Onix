@@ -12,7 +12,7 @@ CREATE TABLE cliente (
 	entrenador_id INTEGER,
 
 	---ESTADO MEMBRESIA
-	estado_cuota VARCHAR(20) DEFAULT 'inactivo'
+	estado_cuota VARCHAR(20) DEFAULT 'activo'
 		CHECK (estado_cuota IN ('activo', 'inactivo', 'suspendido')),
 	fecha_inscripcion DATE DEFAULT CURRENT_DATE,
 	fecha_vencimiento DATE,

@@ -4,6 +4,8 @@ import { IPago } from './pago.interface';
 import { ICarnet } from './carnet.interface';
 
 export interface ICliente {
+  dni: any;
+  email: string;
      usuario_id: number;
      nombre: string;
      apellido: string;

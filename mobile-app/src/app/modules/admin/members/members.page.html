@@ -2,25 +2,23 @@
   <ion-toolbar>
     <ion-buttons slot="start">
       <ion-button (click)="goToDashboard()">
-        <ion-icon name="home" slot="icon-only"></ion-icon>
+        <ion-icon name="home" slot="icon-only" color="medium-light"></ion-icon>
       </ion-button>
-      <ion-menu-button></ion-menu-button>
-      
+      <ion-menu-button color="medium-light"></ion-menu-button>
     </ion-buttons>
-    <ion-title>Miembros</ion-title>
-    
+    <ion-title color="dark">Miembros</ion-title>
     <ion-buttons slot="end">
       <ion-button (click)="refreshData()">
-        <ion-icon name="refresh" slot="icon-only"></ion-icon>
+        <ion-icon name="refresh" slot="icon-only" color="medium-light"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
+<ion-content class="ion-padding">
   <!-- Loading -->
   <div *ngIf="loading" class="loading-container">
-    <ion-spinner name="crescent"></ion-spinner>
+    <ion-spinner name="crescent" color="primary"></ion-spinner>
     <p>Cargando miembros...</p>
   </div>
 
@@ -29,7 +27,7 @@
     <ion-icon name="alert-circle" color="danger" size="large"></ion-icon>
     <h3>Error</h3>
     <p>{{errorMessage}}</p>
-    <ion-button (click)="refreshData()" fill="outline">
+    <ion-button (click)="refreshData()" fill="outline" color="medium">
       Reintentar
     </ion-button>
   </div>
@@ -39,112 +37,160 @@
     <!-- Search -->
     <ion-searchbar 
       placeholder="Buscar por nombre, teléfono..."
-      (ionInput)="searchClient($event)"
+      (ionInput)="onSearchInput($event)"
       animated
-      class="ion-padding">
+      color="light"
+      class="ion-margin-bottom">
     </ion-searchbar>
 
     <!-- Status Filter -->
-    <ion-segment value="all" (ionChange)="filterByStatus($event)" class="ion-padding-horizontal">
-      <ion-segment-button value="all">
-        <ion-label>Todos</ion-label>
+    <ion-segment value="activos" (ionChange)="filterByStatus($event)" class="ion-margin-bottom" color="light">
+      <ion-segment-button value="activos">
+        <ion-label color="dark">Activos ({{totalActivos}})</ion-label>
       </ion-segment-button>
-      <ion-segment-button value="activo">
-        <ion-label>Activos</ion-label>
+      <ion-segment-button value="porVencer">
+        <ion-label color="dark">Por Vencer ({{totalPorVencer}})</ion-label>
       </ion-segment-button>
-      <ion-segment-button value="inactivo">
-        <ion-label>Inactivos</ion-label>
+      <ion-segment-button value="inactivos">
+        <ion-label color="dark">Inactivos ({{totalInactivos}})</ion-label>
       </ion-segment-button>
     </ion-segment>
 
     <!-- Stats Card -->
-    <ion-card class="ion-margin">
+    <ion-card class="ion-margin-bottom stats-card">
       <ion-card-content>
-        <div class="stats-container">
-          <div class="stat-item">
-            <h3>{{clients.length}}</h3>
-            <p>Total</p>
-          </div>
-          <div class="stat-item">
-            <h3>{{totalActivos}}</h3>
-            <p>Activos</p>
-          </div>
-          <div class="stat-item">
-            <h3>{{totalPorVencer}}</h3>
-            <p>Por vencer</p>
-          </div>
-        </div>
+        <ion-grid>
+          <ion-row class="stats-row">
+            <ion-col size="4" class="stat-col activo">
+              <ion-icon name="checkmark-circle-outline" size="large" color="success"></ion-icon>
+              <h3>{{totalActivos}}</h3>
+              <p>Activos</p>
+            </ion-col>
+            <ion-col size="4" class="stat-col por-vencer">
+              <ion-icon name="time-outline" size="large" color="warning"></ion-icon>
+              <h3>{{totalPorVencer}}</h3>
+              <p>Por Vencer</p>
+            </ion-col>
+            <ion-col size="4" class="stat-col inactivo">
+              <ion-icon name="close-circle-outline" size="large" color="medium"></ion-icon>
+              <h3>{{totalInactivos}}</h3>
+              <p>Inactivos</p>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
       </ion-card-content>
     </ion-card>
 
     <!-- Clients List -->
-    <ion-list>
-      <ion-item *ngFor="let client of filteredClients" button (click)="viewMemberDetails(client.usuario_id)">
-        <ion-avatar slot="start">
-          <ion-icon name="person-circle" *ngIf="!client.foto" size="large"></ion-icon>
-          <img [src]="client.foto" *ngIf="client.foto" alt="Foto">
-        </ion-avatar>
-        
-        <ion-label>
-          <h2>
-            {{client.nombre}} {{client.apellido}}
-            <ion-badge [color]="getStatusColor(client.estado_cuota)" style="margin-left: 8px;">
-              {{client.estado_cuota}}
-            </ion-badge>
-          </h2>
+    <div *ngIf="getClientesFiltrados().length > 0">
+      <ion-list class="clients-list">
+        <ion-item *ngFor="let client of getClientesFiltrados()" button (click)="viewMemberDetails(client.usuario_id)" lines="full" class="client-item">
+          <ion-avatar slot="start" class="client-avatar">
+            <!-- Icono principal del cliente en celeste claro -->
+            <div class="avatar-icon-wrapper">
+              <ion-icon name="person" class="client-main-icon" color="light"></ion-icon>
+            </div>
+          </ion-avatar>
           
-          <!-- WhatsApp Link -->
-          <p class="whatsapp-link">
-            <a 
-              [href]="generarEnlaceWhatsApp(client)" 
-              target="_blank"
-              (click)="$event.stopPropagation()"
-              class="whatsapp-number">
-              <ion-icon name="logo-whatsapp" color="success"></ion-icon>
-              {{client.telefono || 'Sin teléfono'}}
-            </a>
-          </p>
-          
-          <!-- Dates -->
-          <p class="dates">
-            <ion-icon name="calendar" size="small"></ion-icon>
-            Insc: {{formatDate(client.fecha_inscripcion)}}
-            • 
-            Vence: {{formatDate(client.fecha_vencimiento)}}
+          <ion-label class="client-info">
+            <div class="client-header">
+              <h2 class="client-name">{{client.nombre}} {{client.apellido}}</h2>
+              
+              <!-- Badge principal de estado -->
+              <ion-badge 
+                [color]="calcularEstadoCliente(client) === 'activo' ? 'success' : 'medium'"
+                class="status-badge">
+                {{calcularEstadoCliente(client) === 'activo' ? 'Activo' : 'Inactivo'}}
+              </ion-badge>
+              
+              <!-- Badge para "Por Vencer" -->
+              <ion-badge 
+                *ngIf="calcularEstadoCliente(client) === 'activo' && diasParaVencer(client) <= 7 && diasParaVencer(client) > 0"
+                color="warning" 
+                class="warning-badge">
+                ⏳ Vence en {{diasParaVencer(client)}} días
+              </ion-badge>
+              
+              <!-- Badge para "Vence Hoy" -->
+              <ion-badge 
+                *ngIf="calcularEstadoCliente(client) === 'activo' && diasParaVencer(client) === 0"
+                color="danger" 
+                class="danger-badge">
+                ⚠️ Vence hoy
+              </ion-badge>
+              
+              <!-- Badge para "Vencido" -->
+              <ion-badge 
+                *ngIf="calcularEstadoCliente(client) === 'inactivo' && client.fecha_vencimiento"
+                color="dark" 
+                class="expired-badge">
+                ❌ Vencido
+              </ion-badge>
+            </div>
             
-            <ion-badge 
-              color="warning" 
-              *ngIf="diasParaVencer(client.fecha_vencimiento) <= 7 && diasParaVencer(client.fecha_vencimiento) > 0"
-              style="margin-left: 8px;">
-              Vence en {{diasParaVencer(client.fecha_vencimiento)}} días
-            </ion-badge>
-          </p>
-        </ion-label>
-        
-        <ion-buttons slot="end" (click)="$event.stopPropagation()">
-          <!-- WhatsApp Button -->
-          <ion-button 
-            fill="clear" 
-            color="success"
-            [href]="generarEnlaceWhatsApp(client)"
-            target="_blank">
-            <ion-icon name="logo-whatsapp" slot="icon-only"></ion-icon>
-          </ion-button>
+            <!-- WhatsApp Link -->
+            <div class="client-contact">
+              <a 
+                [href]="generarEnlaceWhatsApp(client)" 
+                target="_blank"
+                (click)="$event.stopPropagation()"
+                class="whatsapp-link">
+                <ion-icon name="logo-whatsapp" color="success"></ion-icon>
+                <span class="phone-number">{{client.telefono || 'Sin teléfono'}}</span>
+              </a>
+            </div>
+            
+            <!-- Dates -->
+            <div class="client-dates">
+              <span class="date-item">
+                <ion-icon name="calendar" size="small" color="medium-light"></ion-icon>
+                <span class="date-label">Insc:</span>
+                <span class="date-value">{{formatDate(client.fecha_inscripcion)}}</span>
+              </span>
+              
+              <span class="date-separator">•</span>
+              
+              <span class="date-item">
+                <ion-icon name="time" size="small" color="medium-light"></ion-icon>
+                <span class="date-label">Vence:</span>
+                <span class="date-value">{{formatDate(client.fecha_vencimiento) || 'Sin fecha'}}</span>
+              </span>
+            </div>
+          </ion-label>
           
-          <!-- View Button -->
-          <ion-button fill="clear">
-            <ion-icon name="eye" slot="icon-only"></ion-icon>
-          </ion-button>
-        </ion-buttons>
-      </ion-item>
-    </ion-list>
+          <!-- Action Buttons -->
+          <div class="action-buttons" slot="end" (click)="$event.stopPropagation()">
+            <!-- WhatsApp Button -->
+            <ion-button 
+              fill="clear" 
+              size="small"
+              class="action-button whatsapp-button"
+              [href]="generarEnlaceWhatsApp(client)"
+              target="_blank">
+              <ion-icon name="logo-whatsapp" slot="icon-only" color="success"></ion-icon>
+            </ion-button>
+            
+            <!-- Download Button -->
+            <ion-button 
+              fill="clear" 
+              size="small"
+              class="action-button download-button"
+              (click)="descargarCarnet(client)">
+              <ion-icon name="download-outline" slot="icon-only" color="medium"></ion-icon>
+            </ion-button>
+          </div>
+        </ion-item>
+      </ion-list>
+    </div>
 
     <!-- Empty State -->
-    <div *ngIf="filteredClients.length === 0" class="empty-state">
-      <ion-icon name="people-outline" size="large" color="medium"></ion-icon>
-      <h3>No se encontraron miembros</h3>
-      <p *ngIf="searchTerm || filterStatus !== 'all'">Intenta con otros filtros</p>
-      <ion-button (click)="goToNewMember()" fill="solid" color="primary">
+    <div *ngIf="getClientesFiltrados().length === 0" class="empty-state">
+      <div class="empty-icon">
+        <ion-icon name="people-outline" size="large" color="medium-light"></ion-icon>
+      </div>
+      <h3 class="empty-title">No hay {{getStatusLabel(filterStatus).toLowerCase()}}</h3>
+      <p class="empty-message" *ngIf="searchTerm">Intenta con otro término de búsqueda</p>
+      <ion-button (click)="goToNewMember()" fill="solid" color="primary" class="empty-button">
         <ion-icon name="add" slot="start"></ion-icon>
         Nuevo Miembro
       </ion-button>
@@ -154,7 +200,7 @@
 
 <!-- Floating Button -->
 <ion-fab vertical="bottom" horizontal="end" slot="fixed">
-  <ion-fab-button (click)="goToNewMember()">
-    <ion-icon name="add"></ion-icon>
+  <ion-fab-button color="primary">
+    <ion-icon name="add" color="light"></ion-icon>
   </ion-fab-button>
 </ion-fab>

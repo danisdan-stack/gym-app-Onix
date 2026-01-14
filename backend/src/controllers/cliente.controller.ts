@@ -16,11 +16,9 @@ export const registrarCliente = async (req: Request, res: Response) => {
     await client.query('BEGIN');
 
     const { usuario, cliente: clienteData }: IClienteRegistroRequest = req.body;
-
-    // ✅ NUEVO: Agregar datos del pago al request
     const { monto, mes, ano, metodo = 'efectivo' } = req.body.pago || {};
 
-    // Validaciones existentes + nuevas
+    // Validaciones
     if (!usuario?.username || !usuario?.email || !usuario?.password) {
       return res.status(400).json({
         success: false,
@@ -35,7 +33,6 @@ export const registrarCliente = async (req: Request, res: Response) => {
       });
     }
 
-    // ✅ NUEVO: Validar datos del pago inicial
     if (!monto || !mes || !ano) {
       return res.status(400).json({
         success: false,
@@ -50,7 +47,7 @@ export const registrarCliente = async (req: Request, res: Response) => {
       });
     }
 
-    // 1. Crear usuario (existente)
+    // 1. Crear usuario
     const hashedPassword = await bcrypt.hash(usuario.password, 10);
     
     const usuarioQuery = `
@@ -69,7 +66,18 @@ export const registrarCliente = async (req: Request, res: Response) => {
     
     const usuarioCreado = usuarioResult.rows[0];
 
-    // 2. Crear cliente (existente) con estado ACTIVO desde el inicio
+    // ============================================
+    // FECHAS - 1 MES EXACTO DESDE INSCRIPCIÓN
+    // ============================================
+    const hoy = new Date();
+    const fechaVencimiento = new Date(hoy);
+    fechaVencimiento.setDate(fechaVencimiento.getDate() + 31); // 30 DÍAS EXACTOS
+
+    console.log('📅 FECHAS CLIENTE NORMAL:');
+    console.log('  Inscripción:', hoy.toLocaleDateString());
+    console.log('  Vencimiento:', fechaVencimiento.toLocaleDateString(), '(1 mes exacto)');
+
+    // 2. Crear cliente
     const clienteCreado = await clienteModel.crear({
       usuario_id: usuarioCreado.id,
       nombre: clienteData.nombre,
@@ -77,30 +85,30 @@ export const registrarCliente = async (req: Request, res: Response) => {
       telefono: clienteData.telefono,
       direccion: clienteData.direccion,
       entrenador_id: clienteData.entrenador_id,
-      estado_cuota: 'activo', // ✅ ACTIVO desde el primer día
-      fecha_inscripcion: clienteData.fecha_inscripcion || new Date(),
-      fecha_vencimiento: clienteData.fecha_vencimiento || new Date(new Date().setMonth(new Date().getMonth() + 1))
+      estado_cuota: 'activo',
+      fecha_inscripcion: hoy,
+      fecha_vencimiento: fechaVencimiento  // ← 1 MES EXACTO
     }, client);
 
-    // ✅ NUEVO: 3. Registrar pago inicial
+    // 3. Registrar pago inicial
     const pagoQuery = `
-  INSERT INTO pagos 
-  (cliente_id, monto, metodo, estado, periodo_mes, periodo_ano, fecha_pago, fecha_vencimiento)
-  VALUES ($1, $2, $3, 'pagado', $4, $5, CURRENT_DATE, CURRENT_DATE + INTERVAL '1 month')
-  RETURNING id`;
-  
+      INSERT INTO pagos 
+      (cliente_id, monto, metodo, estado, periodo_mes, periodo_ano, fecha_pago, fecha_vencimiento)
+      VALUES ($1, $2, $3, 'pagado', $4, $5, CURRENT_DATE, $6)
+      RETURNING id`;
+    
     const pagoResult = await client.query(pagoQuery, [
       usuarioCreado.id,
       monto,
       metodo,
       mes,
-      ano
+      ano,
+      fechaVencimiento.toISOString().split('T')[0]  // MISMA FECHA
     ]);
     
     const pagoId = pagoResult.rows[0].id;
-    console.log('✅ Pago inicial registrado ID:', pagoId);
 
-    // ✅ NUEVO: 4. Generar carnet con el mes pagado
+    // 4. Generar carnet
     const carnetService = new CarnetService();
     const carnetPNG = await carnetService.generarCarnetPNG(
       {
@@ -111,10 +119,8 @@ export const registrarCliente = async (req: Request, res: Response) => {
       mes,
       ano
     );
-    
-    console.log('✅ Carnet generado:', carnetPNG.url);
 
-    // ✅ NUEVO: 5. Guardar carnet en BD
+    // 5. Guardar carnet
     const mesesPagados = [{ mes, ano }];
     
     const carnetQuery = `
@@ -134,7 +140,7 @@ export const registrarCliente = async (req: Request, res: Response) => {
 
     await client.query('COMMIT');
 
-    // ✅ NUEVO: Preparar respuesta con pago y carnet
+    // Preparar respuesta
     const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 
                    'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
     const mesNombre = meses[mes - 1];
@@ -155,8 +161,7 @@ export const registrarCliente = async (req: Request, res: Response) => {
         carnet: {
           id: carnetId,
           url: carnetPNG.url,
-          descargar: `/api/carnets/descargar/${carnetId}`,
-          ver: `http://localhost:3000${carnetPNG.url}`
+          descargar: `/api/carnets/descargar/${carnetId}`
         }
       }
     });
@@ -164,7 +169,6 @@ export const registrarCliente = async (req: Request, res: Response) => {
   } catch (error: any) {
     await client.query('ROLLBACK');
     
-    // Manejo de errores (tu código existente)
     if (error.code === '23505') {
       const mensaje = error.constraint.includes('email') 
         ? 'El email ya está registrado'
@@ -262,7 +266,6 @@ export const actualizarCliente = async (req: Request, res: Response) => {
       });
     }
 
-    // Validar que haya datos para actualizar
     if (!datosActualizar || Object.keys(datosActualizar).length === 0) {
       return res.status(400).json({
         success: false,
@@ -270,7 +273,6 @@ export const actualizarCliente = async (req: Request, res: Response) => {
       });
     }
 
-    // Validar estado_cuota si viene
     if (datosActualizar.estado_cuota && 
         !['activo', 'inactivo', 'suspendido'].includes(datosActualizar.estado_cuota)) {
       return res.status(400).json({
@@ -313,7 +315,7 @@ export const actualizarCliente = async (req: Request, res: Response) => {
 };
 
 // ============================================
-// ✅ NUEVA FUNCIÓN: REGISTRO RÁPIDO (3 campos)
+// ✅ FUNCIÓN: REGISTRO RÁPIDO CORREGIDO
 // ============================================
 export const registrarClienteRapido = async (req: Request, res: Response) => {
   const client = await pool.connect();
@@ -321,10 +323,8 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
   try {
     await client.query('BEGIN');
 
-    // ✅ SOLO 3 CAMPOS: nombre, apellido, celular
     const { nombre, apellido, celular } = req.body;
 
-    // Validaciones simples
     if (!nombre || !apellido || !celular) {
       return res.status(400).json({
         success: false,
@@ -332,7 +332,6 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
       });
     }
 
-    // Validar celular (10 dígitos)
     const celularRegex = /^[0-9]{10}$/;
     if (!celularRegex.test(celular)) {
       return res.status(400).json({
@@ -344,23 +343,14 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
     // ============================================
     // GENERAR DATOS AUTOMÁTICAMENTE
     // ============================================
-    
-    // Email automático (solo para BD)
     const email = `${nombre.toLowerCase()}.${apellido.toLowerCase()}${celular.substring(6)}@gym.com`;
-    
-    // Username automático (solo para BD)
     const username = `${nombre.toLowerCase()}${apellido.substring(0, 3).toLowerCase()}${Date.now().toString().substr(-4)}`;
-    
-    // Contraseña automática (solo para BD)
     const password = 'cliente' + celular.substring(6);
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Mes y año actual
-    const fechaHoy = new Date();
-    const mesActual = fechaHoy.getMonth() + 1;
-    const añoActual = fechaHoy.getFullYear();
-    
-    // ✅ MONTO FIJO: $24,000
+    const hoy = new Date(); // ← USAR 'hoy' aquí también
+    const mesActual = hoy.getMonth() + 1;
+    const añoActual = hoy.getFullYear();
     const monto = 24000.00;
     const metodo = 'efectivo';
 
@@ -384,18 +374,19 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
     const usuarioCreado = usuarioResult.rows[0];
 
     // ============================================
-    // FECHAS - 15 DÍAS DE VENCIMIENTO
+    // FECHAS - 1 MES EXACTO DESDE INSCRIPCIÓN
     // ============================================
-    const hoy = new Date();
     const fechaVencimiento = new Date(hoy);
-    fechaVencimiento.setDate(fechaVencimiento.getDate() + 15); // +15 días
+   fechaVencimiento.setDate(fechaVencimiento.getDate() + 31); // ← 30 DÍAS EXACTOS
 
-    console.log('📅 Fechas establecidas:');
-    console.log('  Hoy:', hoy.toLocaleDateString());
-    console.log('  Vencimiento:', fechaVencimiento.toLocaleDateString(), '(15 días)');
+    console.log('📅 FECHAS CLIENTE RÁPIDO:');
+    console.log('  Inscripción:', hoy.toLocaleDateString());
+    console.log('  Vencimiento:', fechaVencimiento.toLocaleDateString(), '(1 mes exacto)');
+    console.log('  Diferencia días:', 
+      Math.round((fechaVencimiento.getTime() - hoy.getTime()) / (1000 * 3600 * 24)));
 
     // ============================================
-    // 2. CREAR CLIENTE usando tu modelo existente
+    // 2. CREAR CLIENTE
     // ============================================
     const clienteCreado = await clienteModel.crear({
       usuario_id: usuarioCreado.id,
@@ -404,11 +395,11 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
       telefono: celular,
       estado_cuota: 'activo',
       fecha_inscripcion: hoy,
-      fecha_vencimiento: fechaVencimiento  // ← 15 DÍAS (NO 1 año)
+      fecha_vencimiento: fechaVencimiento  // ← 1 MES EXACTO
     }, client);
 
     // ============================================
-    // 3. REGISTRAR PAGO INICIAL ($24,000)
+    // 3. REGISTRAR PAGO INICIAL
     // ============================================
     const pagoQuery = `
       INSERT INTO pagos 
@@ -422,26 +413,22 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
         periodo_mes, 
         periodo_ano
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, 'pagado', 'normal', $5, $6)
       RETURNING id`;
 
     const pagoResult = await client.query(pagoQuery, [
-      usuarioCreado.id,                // $1
-      monto,                           // $2
-      metodo,                          // $3
-      fechaVencimiento.toISOString().split('T')[0],  // $4 - Misma fecha que el cliente (15 días)
-      'pagado',                        // $5
-      'normal',                        // $6: tipo_pago
-      mesActual,                       // $7
-      añoActual                        // $8
+      usuarioCreado.id,
+      monto,
+      metodo,
+      fechaVencimiento.toISOString().split('T')[0],  // MISMA FECHA
+      mesActual,
+      añoActual
     ]);
 
     const pagoId = pagoResult.rows[0].id;
-    console.log('✅ Pago registrado ID:', pagoId);
-    console.log('✅ Fecha vencimiento pago:', fechaVencimiento.toISOString().split('T')[0]);
 
     // ============================================
-    // 4. GENERAR CARNET PNG (usando TU servicio)
+    // 4. GENERAR CARNET
     // ============================================
     const carnetService = new CarnetService();
     const carnetPNG = await carnetService.generarCarnetPNG(
@@ -455,7 +442,7 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
     );
 
     // ============================================
-    // 5. GUARDAR CARNET EN BD
+    // 5. GUARDAR CARNET
     // ============================================
     const mesesPagados = [{ mes: mesActual, ano: añoActual }];
     
@@ -475,7 +462,7 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
     const carnetId = carnetResult.rows[0].id;
 
     // ============================================
-    // ✅ NUEVO: 6. ENVIAR CARNET POR WHATSAPP (TWILIO)
+    // 6. ENVIAR WHATSAPP
     // ============================================
     console.log('📱 Enviando carnet por WhatsApp a:', celular);
 
@@ -486,15 +473,12 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
 
     try {
       const twilioService = new TwilioService();
-      // 1. Primero limpia la URL del carnet
       let urlCarnetLimpia = carnetPNG.url.trim();
-      // 2. Asegúrate que empiece con /
       if (!urlCarnetLimpia.startsWith('/')) {
         urlCarnetLimpia = '/' + urlCarnetLimpia;
       }
-      // 3. Construye URL completa con ngrok
       urlCompletaCarnet = `https://woodrow-opprobrious-hypercarnally.ngrok-free.dev${urlCarnetLimpia}`;
-      // 4. Muestra en logs para verificar
+      
       console.log('🔗 URL para WhatsApp:', urlCompletaCarnet);
       
       const resultado = await twilioService.enviarCarnetBienvenida(
@@ -520,7 +504,7 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
     await client.query('COMMIT');
 
     // ============================================
-    // 7. PREPARAR RESPUESTA (MODIFICADA)
+    // 7. PREPARAR RESPUESTA
     // ============================================
     const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 
                    'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
@@ -534,8 +518,9 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
         nombre,
         apellido,
         celular,
-        
-        // Información de pago
+         estado_cuota: 'activo',
+    fecha_vencimiento: fechaVencimiento.toISOString().split('T')[0],
+    fecha_inscripcion: hoy.toISOString().split('T')[0],
         pago: {
           id: pagoId,
           monto,
@@ -543,27 +528,21 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
           mes: mesActual,
           mes_nombre: mesNombre,
           ano: añoActual,
-          metodo,
-          concepto: 'Membresía Anual $24,000',
-          fecha_vencimiento: fechaVencimiento.toISOString().split('T')[0]
+          metodo
+         
         },
         
-        // Carnet generado
         carnet: {
           id: carnetId,
           url: carnetPNG.url,
-          direct_url: urlCompletaCarnet, // ✅ AHORA SÍ EXISTE
+          direct_url: urlCompletaCarnet,
           download_url: `/api/carnets/descargar/${carnetId}`
         },
         
-        // ✅ NUEVO: Estado WhatsApp
         whatsapp: {
           enviado: whatsappEnviado,
           sid: whatsappSid,
-          error: whatsappError,
-          mensaje: whatsappEnviado 
-            ? `Carnet enviado al ${celular}` 
-            : `Error: ${whatsappError || 'No se pudo enviar'}`
+          error: whatsappError
         }
       }
     });
@@ -593,9 +572,6 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
   }
 };
 
-// ============================================
-// ✅ FUNCIÓN: Listar clientes simplificado
-// ============================================
 export const listarClientesSimplificado = async (req: Request, res: Response) => {
   try {
     const query = `
@@ -630,9 +606,6 @@ export const listarClientesSimplificado = async (req: Request, res: Response) =>
   }
 };
 
-// ============================================
-// ✅ FUNCIÓN: Listar clientes con carnet
-// ============================================
 export const listarClientesConCarnet = async (req: Request, res: Response) => {
   try {
     const query = `

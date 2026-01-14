@@ -5,32 +5,22 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { 
-  IonContent, 
-  IonHeader, 
-  IonTitle, 
-  IonToolbar,
-  IonSearchbar,
-  IonSegment,
-  IonSegmentButton,
-  IonLabel,
-  IonList,
-  IonItem,
-  IonAvatar,
-  IonIcon,
-  IonButton,
-  IonButtons,
-  IonBadge,
-  IonNote,
-  IonMenuButton,
-  IonSpinner,
-  IonCard,
-  IonCardContent,
-  IonFab,
-  IonFabButton
+  IonContent, IonHeader, IonTitle, IonToolbar,
+  IonSearchbar, IonSegment, IonSegmentButton, IonLabel,
+  IonList, IonItem, IonAvatar, IonIcon, IonButton,
+  IonButtons, IonBadge, IonNote, IonMenuButton, IonSpinner,
+  IonCard, IonCardContent, IonFab, IonFabButton,
+  IonChip, IonGrid, IonRow, IonCol
 } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { addIcons } from 'ionicons';
-import { people, add, person, search, logoWhatsapp, call, calendar, refresh, eye, menu, home } from 'ionicons/icons'; // ← AGREGAR 'home'
+import { 
+  people, add, person, search, logoWhatsapp, call, calendar, 
+  refresh, eye, menu, home, arrowDownCircleOutline,
+  timeOutline, checkmarkCircleOutline, closeCircleOutline, time,
+  downloadOutline,
+  peopleOutline
+} from 'ionicons/icons';
 import { Cliente } from '../../../core/models/cliente.model';
 
 @Component({
@@ -39,53 +29,50 @@ import { Cliente } from '../../../core/models/cliente.model';
   styleUrls: ['./members.page.scss'],
   standalone: true,
   imports: [
-    CommonModule, 
-    RouterModule,
-    FormsModule,
-    IonContent, 
-    IonHeader, 
-    IonTitle, 
-    IonToolbar,
-    IonSearchbar,
-    IonSegment,
-    IonSegmentButton,
-    IonLabel,
-    IonList,
-    IonItem,
-    IonAvatar,
-    IonIcon,
-    IonButton,
-    IonButtons,
-    IonBadge,
-    IonNote,
-    IonMenuButton,
-    IonSpinner,
-    IonCard,
-    IonCardContent,
-    IonFab,
-    IonFabButton
+    CommonModule, RouterModule, FormsModule,
+    IonContent, IonHeader, IonTitle, IonToolbar,
+    IonSearchbar, IonSegment, IonSegmentButton, IonLabel,
+    IonList, IonItem, IonAvatar, IonIcon, IonButton,
+    IonButtons, IonBadge, IonNote, IonMenuButton, IonSpinner,
+    IonCard, IonCardContent, IonFab, IonFabButton,
+    IonChip, IonGrid, IonRow, IonCol
   ]
 })
 export class MembersPage implements OnInit {
+  // Todos los clientes
   clients: Cliente[] = [];
-  filteredClients: Cliente[] = [];
+  
+  // Listas separadas
+  activos: Cliente[] = [];
+  porVencer: Cliente[] = [];  // Vence en 7 días o menos
+  inactivos: Cliente[] = [];
+  
+  // Estadísticas
+  totalActivos = 0;
+  totalPorVencer = 0;
+  totalInactivos = 0;
+  
+  // Filtros
   searchTerm = '';
-  filterStatus = 'all';
+  filterStatus = 'activos'; // 'activos', 'porVencer', 'inactivos'
   loading = true;
   errorMessage = '';
 
-  // Para estadísticas
-  totalActivos = 0;
-  totalPorVencer = 0; 
-
-  // URL de tu backend
   private apiUrl = 'http://localhost:3000/api';
 
   constructor(
     private router: Router,
     private http: HttpClient
   ) {
-    addIcons({ people, add, person, search, logoWhatsapp, call, calendar, refresh, eye, menu, home }); // ← AGREGAR 'home'
+    addIcons({ 
+      people, add, person, search, logoWhatsapp, call, calendar, 
+      refresh, eye, menu, home, 'arrow-down-circle-outline': arrowDownCircleOutline,
+      'time-outline': timeOutline, 
+      'checkmark-circle-outline': checkmarkCircleOutline,
+      'close-circle-outline': closeCircleOutline, time,
+    'download-outline': downloadOutline,
+    'people-outline': peopleOutline
+    });
   }
 
   ngOnInit() {
@@ -96,157 +83,239 @@ export class MembersPage implements OnInit {
     this.loading = true;
     this.errorMessage = '';
 
-  this.http.get<any>(`${this.apiUrl}/clientes-con-carnet`)
+     this.http.get<any>(`${this.apiUrl}/clientes`)
     .subscribe({
-      next: (response) => {
-        this.loading = false;
-        
-        if (response.success) {
-          console.log('📊 Datos del backend CON CARNET:', response.data[0]);
+        next: (response) => {
+          this.loading = false;
           
-          this.clients = response.data.map((clienteData: any) => ({
-              usuario_id: clienteData.id || clienteData.usuario_id,
-              nombre: clienteData.nombre,
-              apellido: clienteData.apellido,
-              telefono: clienteData.telefono,
-              email: clienteData.email || '',
-              estado_cuota: clienteData.estado_cuota,
-              fecha_inscripcion: clienteData.fecha_inscripcion,
-              fecha_vencimiento: clienteData.fecha_vencimiento,
-              direccion: clienteData.direccion || '',
-              entrenador_id: clienteData.entrenador_id || null,
-              foto: clienteData.foto || undefined,
-              creado_en: new Date(),
-              actualizado_en: new Date(),
-              carnet_url: clienteData.carnet_url
-            } as Cliente));
+          if (response.success) {
+            console.log('📊 Datos del backend:', response.data.length, 'clientes');
             
-             // ORDENAR por fecha de inscripción (más recientes primero)
-          this.clients.sort((a, b) => {
-            const fechaA = new Date(a.fecha_inscripcion).getTime();
-            const fechaB = new Date(b.fecha_inscripcion).getTime();
-            return fechaB - fechaA; // Más recientes primero
-          });
-          
-          this.filteredClients = [...this.clients];
-          console.log(`✅ ${this.clients.length} clientes cargados y ordenados por fecha de inscripción`);
-        } else {
-          this.errorMessage = response.message || 'Error al cargar clientes';
-        }
-      },
-        
+            // Mapear datos
+            // Mapear datos
+this.clients = response.data.map((clienteData: any) => ({
+  usuario_id: clienteData.usuario_id,  // ← YA VIENE COMO usuario_id
+  nombre: clienteData.nombre,
+  apellido: clienteData.apellido,
+  telefono: clienteData.telefono,
+  email: '',  // ← NO VIENE EN LA RESPUESTA
+  estado_cuota: clienteData.estado_cuota,  // ← 'activo'
+  fecha_inscripcion: clienteData.fecha_inscripcion,  // ← FORMATO: "2026-01-14T03:00:00.000Z"
+  fecha_vencimiento: clienteData.fecha_vencimiento,  // ← FORMATO: "2026-02-13T03:00:00.000Z"
+  direccion: clienteData.direccion || '',
+  entrenador_id: clienteData.entrenador_id || null,
+  foto: undefined,  // ← NO VIENE
+  creado_en: new Date(clienteData.creado_en),  // ← USAR FECHA REAL
+  actualizado_en: new Date(clienteData.actualizado_en),  // ← USAR FECHA REAL
+  carnet_url: undefined  // ← NO VIENE EN ESTE ENDPOINT
+} as Cliente));
+            
+            // ✅ CLASIFICAR CLIENTES
+            this.clasificarClientes();
+            
+            console.log(`✅ Clasificados: ${this.activos.length} activos, ${this.porVencer.length} por vencer, ${this.inactivos.length} inactivos`);
+          }
+        },
         error: (error) => {
           this.loading = false;
           console.error('❌ Error HTTP:', error);
           this.errorMessage = 'No se pudo conectar con el servidor';
-          // NO hay datos jarcodeados - solo el mensaje de error
         }
       });
   }
-// Después de loadClientsFromBackend() o antes de formatDate()
-searchClient(event: any) {
-  const term = event.target.value.toLowerCase();
-  this.searchTerm = term;
-  this.applyFilters();
-}
-  formatDate(date: string | Date): string {
-    if (!date) return '';
-    
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return dateObj.toLocaleDateString('es-ES');
-  }
 
-  diasParaVencer(fechaVencimiento: string | Date): number {
-    if (!fechaVencimiento) return 0;
+  // Modificar la función calcularEstadoCliente()
+calcularEstadoCliente(cliente: Cliente): 'activo' | 'inactivo' {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  
+  if (!cliente.fecha_vencimiento) {
+    return 'inactivo';
+  }
+  
+  try {
+    const fechaVenc = new Date(cliente.fecha_vencimiento);
+    fechaVenc.setHours(0, 0, 0, 0);
     
-    const fechaVenc = typeof fechaVencimiento === 'string' 
-      ? new Date(fechaVencimiento) 
-      : fechaVencimiento;
+    if (isNaN(fechaVenc.getTime())) {
+      return 'inactivo';
+    }
+    
+    // Cliente activo si la fecha de vencimiento es hoy o en el futuro
+    return fechaVenc >= hoy ? 'activo' : 'inactivo';
+    
+  } catch (error) {
+    return 'inactivo';
+  }
+}
+
+// Modificar clasificarClientes() para usar 30 días
+clasificarClientes() {
+  this.activos = [];
+  this.porVencer = [];
+  this.inactivos = [];
+  
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  
+  this.clients.forEach(cliente => {
+    const estado = this.calcularEstadoCliente(cliente);
+    
+    if (estado === 'inactivo') {
+      this.inactivos.push(cliente);
+    } else if (estado === 'activo') {
+      // Verificar si está por vencer (menos de 7 días para el vencimiento)
+      if (cliente.fecha_vencimiento) {
+        const fechaVenc = new Date(cliente.fecha_vencimiento);
+        fechaVenc.setHours(0, 0, 0, 0);
+        const diasRestantes = Math.ceil((fechaVenc.getTime() - hoy.getTime()) / (1000 * 3600 * 24));
+        
+        // Si faltan 7 días o menos para el vencimiento
+        if (diasRestantes <= 7 && diasRestantes >= 0) {
+          this.porVencer.push(cliente);
+        } else {
+          this.activos.push(cliente);
+        }
+      } else {
+        this.activos.push(cliente);
+      }
+    }
+  });
+  
+  // Actualizar estadísticas
+  this.totalActivos = this.activos.length;
+  this.totalPorVencer = this.porVencer.length;
+  this.totalInactivos = this.inactivos.length;
+}
+ diasParaVencer(cliente: Cliente): number {
+    if (!cliente.fecha_vencimiento) {
+      return 999;
+    }
     
     const hoy = new Date();
-    const diferencia = fechaVenc.getTime() - hoy.getTime();
+    hoy.setHours(0, 0, 0, 0);
     
-    return Math.ceil(diferencia / (1000 * 3600 * 24));
+    const fechaVenc = new Date(cliente.fecha_vencimiento);
+    fechaVenc.setHours(0, 0, 0, 0);
+    
+    if (isNaN(fechaVenc.getTime())) {
+      return 999;
+    }
+    
+    const diferenciaMs = fechaVenc.getTime() - hoy.getTime();
+    return Math.ceil(diferenciaMs / (1000 * 3600 * 24));
+  }
+// Nueva función para mostrar el aviso "Por vencer" en el HTML
+getAvisoPorVencer(cliente: Cliente): string {
+  if (!cliente.fecha_vencimiento) return '';
+  
+  const diasRestantes = this.diasParaVencer(cliente);
+  
+  if (diasRestantes <= 7 && diasRestantes > 0) {
+    return ` (Vence en ${diasRestantes} días)`;
+  } else if (diasRestantes === 0) {
+    return ' (Vence hoy)';
+  } else if (diasRestantes < 0) {
+    return ' (Vencido)';
+  }
+  
+  return '';
+}
+
+  // Resto de tus métodos (sin cambios)
+  formatDate(date: string | Date | null | undefined): string {
+    if (!date) return 'Sin fecha';
+    const dateObj = new Date(date);
+    return isNaN(dateObj.getTime()) ? 'Fecha inválida' : dateObj.toLocaleDateString('es-ES');
   }
 
   generarEnlaceWhatsApp(cliente: Cliente): string {
-  if (!cliente.telefono) return '#';
-  
-  // 1. Usa el número DEL CLIENTE (para escribirle directamente)
-  let telefono = cliente.telefono.toString().replace(/\D/g, '');
-  
-  // 2. Formatear para WhatsApp (Argentina)
-  if (telefono.length === 10) {
-    telefono = '54' + telefono; // Código Argentina
+    if (!cliente.telefono) return '#';
+    let telefono = cliente.telefono.toString().replace(/\D/g, '');
+    if (telefono.length === 10) telefono = '54' + telefono;
+    const mensaje = this.generarMensajeWhatsApp(cliente);
+    return `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
   }
-  
-  // 3. Generar mensaje MEJORADO
-  const mensaje = this.generarMensajeWhatsApp(cliente);
-  const mensajeCodificado = encodeURIComponent(mensaje);
-  
-  // 4. Enlace para escribir AL CLIENTE (no al gimnasio)
-  return `https://wa.me/${telefono}?text=${mensajeCodificado}`;
-}
 
-generarMensajeWhatsApp(cliente: Cliente): string {
-  const carnetUrl = (cliente as any).carnet_url;
-  
-  // Usar ngrok en lugar de localhost
-  let urlCompleta = '';
-  if (carnetUrl && carnetUrl.trim() !== '') {
-    // Convertir a URL con ngrok
-    if (carnetUrl.startsWith('/')) {
-      urlCompleta = `https://woodrow-opprobrious-hypercarnally.ngrok-free.dev${carnetUrl}`;
-    } else if (carnetUrl.startsWith('http://localhost:3000')) {
-      urlCompleta = carnetUrl.replace(
-        'http://localhost:3000', 
-        'https://woodrow-opprobrious-hypercarnally.ngrok-free.dev'
-      );
-    } else {
-      urlCompleta = carnetUrl;
+  generarMensajeWhatsApp(cliente: Cliente): string {
+    const clienteId = (cliente as any).usuario_id;
+    const backendUrl = 'http://localhost:3000';
+    
+    let mensaje = `*¡HOLA ${cliente.nombre.toUpperCase()}!*\n\nTu registro en ONIX GYM ha sido completado\n\n`;
+    
+    if (clienteId) {
+      const urlCompleta = `${backendUrl}/api/carnets/ver/${clienteId}`;
+      mensaje += `*🎫 Tu carnet digital:*\n${urlCompleta}\n\n_Haz clic en el enlace para ver tu carnet_\n\n`;
     }
+    
+    mensaje += `*Formulario para completar con tus datos:* https://forms.gle/RjDLmzH29UeocWcV8\n\n🏋️ ¡Nos vemos en el gym! 💪`;
+    return mensaje;
   }
-  
-  // Mensaje MEJORADO
-  let mensaje = `*¡HOLA ${cliente.nombre.toUpperCase()}!*\n\n` +
-    `Tu registro en ONIX GYM ha sido completado\n\n`;
-  
-  if (urlCompleta) {
-    mensaje += ` *Tu carnet digital:*\n` +
-      `${urlCompleta}\n\n` +
-      `_Haz clic para ver/descargar_\n\n`;
-  }
-  
-  mensaje += ` *Fecha inscripción:* ${this.formatDate(cliente.fecha_inscripcion)}\n` +
-    `*Válido por:* 15 días\n\n` +
-    `¡Nos vemos en el gym! `;
-  
-  return mensaje;
-}
 
   filterByStatus(event: any) {
     this.filterStatus = event.detail.value;
-    this.applyFilters();
   }
 
-  applyFilters() {
-    let filtered = [...this.clients];
-    
-    if (this.searchTerm) {
-      filtered = filtered.filter(client =>
-        client.nombre.toLowerCase().includes(this.searchTerm) ||
-        client.apellido.toLowerCase().includes(this.searchTerm) ||
-        client.email?.toLowerCase().includes(this.searchTerm) ||
-        client.telefono.includes(this.searchTerm)
-      );
-    }
-    
-    if (this.filterStatus !== 'all') {
-      filtered = filtered.filter(client => client.estado_cuota === this.filterStatus);
-    }
-    
-    this.filteredClients = filtered;
+  onSearchInput(event: any) {
+    this.searchTerm = event.detail?.value || '';
+    this.clasificarClientes(); // Reclasificar con filtro
   }
+
+ getClientesFiltrados(): Cliente[] {
+  let lista: Cliente[] = [];
+  
+  // Seleccionar lista según filtro
+  switch (this.filterStatus) {
+    case 'activos': lista = this.activos; break;
+    case 'porVencer': lista = this.porVencer; break;
+    case 'inactivos': lista = this.inactivos; break;
+    default: lista = this.activos;
+  }
+  
+  // Aplicar búsqueda si hay término
+  if (this.searchTerm.trim()) {
+    const term = this.searchTerm.toLowerCase().trim();
+    lista = lista.filter(c => 
+      c.nombre?.toLowerCase().includes(term) ||
+      c.apellido?.toLowerCase().includes(term) ||
+      c.telefono?.toString().includes(term) ||
+      `${c.nombre} ${c.apellido}`.toLowerCase().includes(term)
+    );
+  }
+  
+  // ORDENAR DEL MÁS RECIENTE AL MÁS ANTIGUO
+  // Basado en fecha_vencimiento (si existe), sino fecha_inscripcion
+  lista.sort((a, b) => {
+    // PRIMERO: Ordenar por fecha de vencimiento (más reciente primero)
+    if (a.fecha_vencimiento && b.fecha_vencimiento) {
+      const fechaA = new Date(a.fecha_vencimiento).getTime();
+      const fechaB = new Date(b.fecha_vencimiento).getTime();
+      return fechaB - fechaA; // Orden descendente (más reciente primero)
+    }
+    
+    // SEGUNDO: Si uno tiene fecha y otro no, el que tiene fecha va primero
+    if (a.fecha_vencimiento && !b.fecha_vencimiento) return -1;
+    if (!a.fecha_vencimiento && b.fecha_vencimiento) return 1;
+    
+    // TERCERO: Ordenar por fecha de inscripción (más reciente primero)
+    if (a.fecha_inscripcion && b.fecha_inscripcion) {
+      const fechaA = new Date(a.fecha_inscripcion).getTime();
+      const fechaB = new Date(b.fecha_inscripcion).getTime();
+      return fechaB - fechaA; // Orden descendente
+    }
+    
+    // CUARTO: Si uno tiene fecha inscripción y otro no
+    if (a.fecha_inscripcion && !b.fecha_inscripcion) return -1;
+    if (!a.fecha_inscripcion && b.fecha_inscripcion) return 1;
+    
+    // QUINTO: Orden alfabético por nombre como último criterio
+    const nombreCompletoA = `${a.nombre || ''} ${a.apellido || ''}`.toLowerCase();
+    const nombreCompletoB = `${b.nombre || ''} ${b.apellido || ''}`.toLowerCase();
+    return nombreCompletoA.localeCompare(nombreCompletoB);
+  });
+  
+  return lista;
+}
 
   getStatusColor(status: string): string {
     switch (status) {
@@ -257,12 +326,30 @@ generarMensajeWhatsApp(cliente: Cliente): string {
     }
   }
 
+  getStatusIcon(status: string): string {
+    switch (status) {
+      case 'activo': return 'checkmark-circle-outline';
+      case 'porVencer': return 'time-outline';
+      case 'inactivo': return 'close-circle-outline';
+      default: return 'person';
+    }
+  }
+
+  getStatusLabel(status: string): string {
+    switch (status) {
+      case 'activos': return 'Activos';
+      case 'porVencer': return 'Por Vencer';
+      case 'inactivos': return 'Inactivos';
+      default: return 'Activos';
+    }
+  }
+
   goToNewMember() {
     this.router.navigate(['/rapido']);
   }
 
   goToDashboard() {
-    this.router.navigate(['/admin/dashboard']); 
+    this.router.navigate(['/admin/dashboard']);
   }
 
   viewMemberDetails(clientId: number) {
@@ -272,9 +359,14 @@ generarMensajeWhatsApp(cliente: Cliente): string {
   refreshData(event?: any) {
     this.loadClientsFromBackend();
     if (event) {
-      setTimeout(() => {
-        event.target.complete();
-      }, 1000);
+      setTimeout(() => event.target.complete(), 1000);
     }
+  }
+
+  descargarCarnet(cliente: Cliente) {
+    const clienteId = (cliente as any).usuario_id;
+    if (!clienteId) return;
+    const url = `http://localhost:3000/api/carnets/descargar/${clienteId}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 }

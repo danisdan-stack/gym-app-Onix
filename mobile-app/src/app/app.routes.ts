@@ -19,6 +19,7 @@ export const routes: Routes = [
     path: 'rapido',  // ✅ ESTA ES LA RUTA IMPORTANTE
     loadComponent: () => import('./modules/client/rapido/cliente_rapido.page').then(m => m.ClienteRapidoPage)
   },
+  
     {
     path: 'pagos',   // ✅ NUEVA RUTA PARA PAGOS
     loadComponent: () => import('./modules/admin/payments/pagos.page').then(m => m.PagosPage)

@@ -10,11 +10,12 @@ import {
 export class ClienteModel {
   constructor(private pool: Pool) {}
 
- async crear(clienteData: IClienteCreate, dbClient?: any): Promise<ICliente> {
+async crear(clienteData: IClienteCreate, dbClient?: any): Promise<ICliente> {
   const query = `
     INSERT INTO cliente 
-    (usuario_id, nombre, apellido, telefono, direccion)
-    VALUES ($1, $2, $3, $4, $5)
+    (usuario_id, nombre, apellido, telefono, direccion, 
+     entrenador_id, estado_cuota, fecha_inscripcion, fecha_vencimiento)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *;
   `;
   
@@ -23,17 +24,18 @@ export class ClienteModel {
     clienteData.nombre,
     clienteData.apellido,
     clienteData.telefono || null,
-    clienteData.direccion || null
+    clienteData.direccion || null,
+    clienteData.entrenador_id || null,
+    clienteData.estado_cuota || 'activo',  // Valor por defecto
+    clienteData.fecha_inscripcion || new Date(),
+    clienteData.fecha_vencimiento || null
   ];
   
   try {
-    // ✅ Opción A: Usa try-catch para ambos casos
     if (dbClient) {
-      // Si se pasa un cliente de transacción
       const result = await dbClient.query(query, values);
       return result.rows[0];
     } else {
-      // Si no, usa el pool normal
       const result = await this.pool.query<ICliente>(query, values);
       return result.rows[0];
     }

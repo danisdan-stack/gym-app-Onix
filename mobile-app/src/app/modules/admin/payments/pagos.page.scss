@@ -177,3 +177,214 @@ ion-avatar {
     margin: 0 0 16px 0;
   }
 }
+
+.pago-exitoso-alert, .cliente-al-dia-alert, .error-alert {
+  .alert-wrapper {
+    border-radius: 16px;
+    max-width: 400px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  }
+  
+  .alert-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+  }
+  
+  .alert-sub-title {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 400;
+  }
+}
+
+// Estilos específicos para éxito
+.pago-exitoso-alert {
+  .alert-header-success {
+    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+    text-align: center;
+    margin: -16px -16px 15px -16px;
+    
+    .success-icon {
+      font-size: 50px;
+      margin-bottom: 10px;
+      display: block;
+    }
+    
+    h3 {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+  }
+  
+  .alert-info-card {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 15px 0;
+  }
+  
+  .info-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+    
+    .info-icon {
+      color: #4CAF50;
+      font-size: 20px;
+      margin-right: 12px;
+      min-width: 24px;
+    }
+    
+    .info-content {
+      flex: 1;
+      
+      .info-label {
+        display: block;
+        font-size: 0.8rem;
+        color: #666;
+        margin-bottom: 2px;
+      }
+      
+      .info-value {
+        display: block;
+        font-weight: 500;
+        color: #333;
+        
+        &.success-amount {
+          color: #4CAF50;
+          font-weight: 700;
+          font-size: 1.1rem;
+        }
+      }
+    }
+  }
+  
+  .alert-status-success {
+    background: #e8f5e8;
+    border-left: 4px solid #4CAF50;
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+    
+    .status-icon {
+      color: #4CAF50;
+      font-size: 20px;
+      margin-right: 10px;
+    }
+    
+    span {
+      color: #155724;
+      font-weight: 500;
+    }
+  }
+  
+  .alert-footer {
+    text-align: center;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+    margin-top: 15px;
+    
+    ion-icon {
+      color: #6c757d;
+      font-size: 14px;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    
+    small {
+      color: #6c757d;
+      font-size: 0.8rem;
+    }
+  }
+}
+
+// Botones personalizados
+.whatsapp-button {
+  --background: #25D366;
+  --background-hover: #1da851;
+  --color: white;
+  --border-radius: 8px;
+  font-weight: 600;
+  margin: 5px;
+}
+
+.carnet-button {
+  --background: #4285F4;
+  --background-hover: #3367d6;
+  --color: white;
+  --border-radius: 8px;
+  font-weight: 600;
+  margin: 5px;
+}
+
+.listo-button {
+  --background: #6c757d;
+  --background-hover: #5a6268;
+  --color: white;
+  --border-radius: 8px;
+  font-weight: 600;
+  margin: 5px;
+}
+
+.detalles-button {
+  --background: #6f42c1;
+  --color: white;
+  --border-radius: 8px;
+  font-weight: 600;
+}
+
+.cerrar-button {
+  --background: #6c757d;
+  --color: white;
+  --border-radius: 8px;
+  font-weight: 600;
+}
+
+.phone-green {
+  color: #25D366;
+  cursor: pointer;
+  font-weight: 500;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.client-detail.telefono {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+  
+  .phone-icon {
+    color: #666;
+    font-size: 16px;
+  }
+  
+  .whatsapp-number.green-number {
+    color: #25D366 !important; /* Verde WhatsApp */
+    font-weight: 500;
+    cursor: pointer;
+    
+    &:hover {
+      text-decoration: underline;
+      opacity: 0.9;
+    }
+  }
+  
+  .no-phone {
+    color: #999;
+    font-style: italic;
+  }
+}

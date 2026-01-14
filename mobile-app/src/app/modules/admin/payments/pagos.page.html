@@ -139,14 +139,15 @@
               <span *ngIf="cliente.apellido"><strong></strong> {{cliente.apellido}}</span>
             </p>
             
-            <!-- ✅ CELULAR - ABAJO DEL NOMBRE -->
-          <p class="client-detail telefono">
-  <ion-icon name="call-outline"></ion-icon>
+<p class="client-detail telefono">
+  <ion-icon name="call-outline" class="phone-icon"></ion-icon>
+  
   <span *ngIf="cliente.telefono" 
         (click)="abrirWhatsApp(cliente)"  
-        class="whatsapp-link">
+        class="whatsapp-number green-number">
     {{cliente.telefono}}
   </span>
+  
   <span *ngIf="!cliente.telefono" class="no-phone">
     Sin teléfono
   </span>

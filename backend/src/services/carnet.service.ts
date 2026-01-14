@@ -76,8 +76,11 @@ export class CarnetService {
     ctx.strokeStyle = 'white';
     ctx.lineWidth = 1.5;
     
-    const hoy = new Date();
-    const diaPago = hoy.getDate().toString().padStart(2, '0');
+   let diaPago = '01'; // Valor por defecto
+if (datosCliente.fecha_inscripcion) {
+  const fechaInscripcion = new Date(datosCliente.fecha_inscripcion);
+  diaPago = fechaInscripcion.getDate().toString().padStart(2, '0');
+}
     ctx.strokeText(`${diaPago} de cada mes`, 505, 590);
     ctx.fillText(`${diaPago} de cada mes`, 505, 590);
     
@@ -246,8 +249,19 @@ if (cliente.fecha_inscripcion) {
     ctx.strokeStyle = 'white';
     ctx.lineWidth = 1.5; 
     
-    const hoy = new Date();
-    const diaPago = hoy.getDate().toString().padStart(2, '0');
+    let diaPago = '01'; // Valor por defecto
+
+if (cliente.fecha_inscripcion) {
+  // Asegurarnos de que sea un Date object
+  const fechaInscripcion = cliente.fecha_inscripcion instanceof Date 
+    ? cliente.fecha_inscripcion 
+    : new Date(cliente.fecha_inscripcion);
+  
+  // Verificar que sea una fecha válida
+  if (!isNaN(fechaInscripcion.getTime())) {
+    diaPago = fechaInscripcion.getDate().toString().padStart(2, '0');
+  }
+}
     ctx.fillText(`${diaPago} de cada mes`, 505, 590);
     // PRIMERO el stroke (borde - hace grueso)
 ctx.strokeText(`${diaPago} de cada mes`, 505, 590);

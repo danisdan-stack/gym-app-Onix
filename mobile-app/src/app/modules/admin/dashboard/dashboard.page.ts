@@ -160,11 +160,7 @@ goToRapido(){
     this.loadDashboardData();
     this.initQuickStats();
   }
-    volverAlHome() {
-  this.router.navigate(['/admin/dashboard']);
-  // O si quieres a la raíz:
-  // this.router.navigate(['/']);
-}
+   
 
   initQuickStats() {
     // Quick stats inicializadas en ceros

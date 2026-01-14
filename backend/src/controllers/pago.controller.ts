@@ -111,13 +111,12 @@ export const listarClientesConEstado = async (req: Request, res: Response) => {
 };
 
 // ============================================
-// FUNCIÓN: Registrar pago desde página web
-// ============================================
+// FUNCIÓN: Registrar pago desde página web - VERSIÓN CORREGIDA
 export const registrarPagoCliente = async (req: Request, res: Response) => {
   const client = await pool.connect();
   
   try {
-    const { cliente_id, mes, año, monto = 24000, metodo = 'efectivo' } = req.body;
+    const { cliente_id, mes, año, monto = 24000, metodo = 'efectivo', fecha_vencimiento } = req.body;
     
     // Validaciones
     if (!cliente_id || !mes || !año) {
@@ -152,29 +151,44 @@ export const registrarPagoCliente = async (req: Request, res: Response) => {
     
     const cliente = clienteResult.rows[0];
     
-    // 2. Registrar el pago
-    const pagoQuery = `
-      INSERT INTO pagos 
-      (cliente_id, monto, metodo, estado, periodo_mes, periodo_ano, fecha_pago, fecha_vencimiento)
-      VALUES ($1, $2, $3, 'pagado', $4, $5, CURRENT_DATE, CURRENT_DATE + INTERVAL '1 month')
-      RETURNING id, fecha_pago;
-    `;
-    
-    const pagoResult = await client.query(pagoQuery, [
-      cliente_id, monto, metodo, mes, año
-    ]);
-    
+    // 2. Registrar el pago (VERSIÓN CORREGIDA Y SEGURA)
+    let pagoQuery;
+    let pagoParams;
+
+    if (fecha_vencimiento) {
+      // Si viene fecha explícita
+      pagoQuery = `
+        INSERT INTO pagos 
+        (cliente_id, monto, metodo, estado, periodo_mes, periodo_ano, fecha_pago, fecha_vencimiento)
+        VALUES ($1, $2, $3, 'pagado', $4, $5, CURRENT_DATE, $6::DATE)
+        RETURNING id, fecha_pago, fecha_vencimiento;
+      `;
+      pagoParams = [cliente_id, monto, metodo, mes, año, fecha_vencimiento];
+    } else {
+      // Si no viene fecha, calcularla automáticamente
+      pagoQuery = `
+        INSERT INTO pagos 
+        (cliente_id, monto, metodo, estado, periodo_mes, periodo_ano, fecha_pago, fecha_vencimiento)
+        VALUES ($1, $2, $3, 'pagado', $4, $5, CURRENT_DATE, 
+                (DATE_TRUNC('MONTH', MAKE_DATE($5, $4, 1)) + INTERVAL '1 MONTH' - INTERVAL '1 DAY'))
+        RETURNING id, fecha_pago, fecha_vencimiento;
+      `;
+      pagoParams = [cliente_id, monto, metodo, mes, año];
+    }
+
+    const pagoResult = await client.query(pagoQuery, pagoParams);
     const pago = pagoResult.rows[0];
     
-    // 3. Actualizar cliente
-    await client.query(
-      `UPDATE cliente 
-       SET fecha_vencimiento = CURRENT_DATE + INTERVAL '1 month',
-           estado_cuota = 'activo',
-           actualizado_en = CURRENT_TIMESTAMP
-       WHERE usuario_id = $1`,
-      [cliente_id]
-    );
+    // 3. Actualizar cliente con la misma fecha de vencimiento del pago
+    const updateClienteQuery = `
+      UPDATE cliente 
+      SET fecha_vencimiento = $1,
+          estado_cuota = 'activo',
+          actualizado_en = CURRENT_TIMESTAMP
+      WHERE usuario_id = $2
+    `;
+    
+    await client.query(updateClienteQuery, [pago.fecha_vencimiento, cliente_id]);
     
     // 4. Generar carnet
     const carnetPNG = await carnetService.generarCarnetPNG(cliente, mes, año);
@@ -241,13 +255,15 @@ export const registrarPagoCliente = async (req: Request, res: Response) => {
           monto,
           mes,
           año,
-          mes_nombre: mesNombre
+          mes_nombre: mesNombre,
+          fecha_vencimiento: pago.fecha_vencimiento
         },
         cliente: {
           id: cliente_id,
           nombre: cliente.nombre,
           apellido: cliente.apellido,
-          telefono: cliente.telefono
+          telefono: cliente.telefono,
+          nueva_fecha_vencimiento: pago.fecha_vencimiento
         },
         carnet: {
           id: carnetId,
@@ -270,7 +286,6 @@ export const registrarPagoCliente = async (req: Request, res: Response) => {
     client.release();
   }
 };
-
 // ============================================
 // FUNCIÓN: Registrar pago general (optimizada)
 // ============================================
@@ -280,7 +295,7 @@ export const registrarPago = async (req: Request, res: Response) => {
   try {
     const pagoData: IPagoCreate = req.body;
 
-    // Validaciones
+    // Validaciones (MANTENER IGUAL)
     if (!pagoData.cliente_id || !pagoData.monto || !pagoData.metodo) {
       return res.status(400).json({
         success: false,
@@ -320,10 +335,41 @@ export const registrarPago = async (req: Request, res: Response) => {
 
     await client.query('BEGIN');
 
-    // Registrar pago usando el modelo
+    // 1. Registrar el pago usando el modelo
     const pagoCreado = await pagoModel.registrar(pagoData);
 
-    // Generar carnet si hay periodo
+    // 2. **ACTUALIZAR CLIENTE - ¡PARTE IMPORTANTE!**
+    if (pagoData.estado === 'pagado') {
+      const updateClienteQuery = `
+        UPDATE cliente 
+        SET 
+          estado_cuota = 'activo',
+          fecha_vencimiento = COALESCE(
+            $1::DATE,  -- fecha_vencimiento explícita
+            CASE 
+              WHEN $2 IS NOT NULL AND $3 IS NOT NULL  -- periodo_mes y periodo_ano
+              THEN (DATE_TRUNC('MONTH', MAKE_DATE($3, $2, 1)) + INTERVAL '1 MONTH' - INTERVAL '1 DAY')::DATE
+              ELSE (DATE_TRUNC('MONTH', CURRENT_DATE) + INTERVAL '1 MONTH' - INTERVAL '1 DAY')::DATE
+            END
+          ),
+          actualizado_en = CURRENT_TIMESTAMP
+        WHERE usuario_id = $4
+        RETURNING usuario_id, fecha_vencimiento;
+      `;
+      
+      const updateResult = await client.query(updateClienteQuery, [
+        pagoData.fecha_vencimiento || null,
+        pagoData.periodo_mes || null,
+        pagoData.periodo_ano || null,
+        pagoData.cliente_id
+      ]);
+      
+      if (updateResult.rows.length > 0) {
+        console.log(`✅ Cliente ${pagoData.cliente_id} actualizado. Nueva fecha: ${updateResult.rows[0].fecha_vencimiento}`);
+      }
+    }
+
+    // 3. Generar carnet si hay periodo
     let carnetInfo = null;
     
     if (pagoData.periodo_mes && pagoData.periodo_ano) {
@@ -397,25 +443,14 @@ export const registrarPago = async (req: Request, res: Response) => {
             nuevo_carnet: carnetExistente.rows.length === 0
           };
         }
-        
-        // Actualizar estado del cliente
-        if (pagoData.estado === 'pagado' || (pagoCreado && pagoCreado.estado === 'pagado')) {
-          await client.query(
-            `UPDATE cliente 
-             SET estado_cuota = 'activo', 
-                 fecha_vencimiento = COALESCE($1, CURRENT_DATE + INTERVAL '1 month'),
-                 actualizado_en = CURRENT_TIMESTAMP
-             WHERE usuario_id = $2`,
-            [pagoData.fecha_vencimiento, pagoData.cliente_id]
-          );
-        }
       } catch (carnetError: any) {
         console.error('⚠️ Error procesando carnet:', carnetError.message);
+        // NO hacer rollback por error en carnet
       }
     }
 
-    // Enviar WhatsApp en segundo plano
-    if (pagoData.estado === 'pagado' || (pagoCreado && pagoCreado.estado === 'pagado')) {
+    // 4. Enviar WhatsApp en segundo plano
+    if (pagoData.estado === 'pagado') {
       enviarNotificacionPago(
         pagoData.cliente_id,
         pagoData,
@@ -427,7 +462,7 @@ export const registrarPago = async (req: Request, res: Response) => {
 
     await client.query('COMMIT');
 
-    // Responder
+    // 5. Responder
     res.status(201).json({
       success: true,
       message: 'Pago registrado exitosamente' + (carnetInfo ? ' y carnet actualizado' : ''),
@@ -462,6 +497,34 @@ export const registrarPago = async (req: Request, res: Response) => {
     client.release();
   }
 };
+
+/**
+ * Calcula fecha de vencimiento para un pago
+ */
+function calcularFechaVencimiento(pagoData: IPagoCreate): string | null {
+  try {
+    // Si viene fecha_vencimiento explícita
+    if (pagoData.fecha_vencimiento) {
+      return new Date(pagoData.fecha_vencimiento).toISOString().split('T')[0];
+    }
+    
+    // Si viene periodo específico
+    if (pagoData.periodo_mes && pagoData.periodo_ano) {
+      const año = pagoData.periodo_ano;
+      const mes = pagoData.periodo_mes;
+      // Último día del mes
+      const ultimoDia = new Date(año, mes, 0);
+      return ultimoDia.toISOString().split('T')[0];
+    }
+    
+    // Si no hay datos, devolver null para que PostgreSQL calcule
+    return null;
+    
+  } catch (error) {
+    console.error('Error calculando fecha de vencimiento:', error);
+    return null;
+  }
+}
 
 // ============================================
 // FUNCIONES AUXILIARES EXISTENTES
