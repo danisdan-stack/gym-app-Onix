@@ -144,6 +144,9 @@ export class PagosPage implements OnInit {
   }
 
  procesarClientes() {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
+
   // Adapta los datos de la API a tu interfaz
   this.clientes = this.clientes.map(cliente => {
     // 1. COMBINAR NOMBRE Y APELLIDO CORRECTAMENTE
@@ -164,39 +167,81 @@ export class PagosPage implements OnInit {
       }
     }
     
-    // 2. NORMALIZAR ESTADO
-    const estado = cliente.estado_pago || cliente.estado_cuota || 'inactivo';
+    // 2. CALCULAR ESTADO BASADO EN FECHA_VENCIMIENTO
     let estadoNormalizado = 'inactivo';
+    let diasRetraso = 0;
+    let estadoTexto = '';
     
-    // Busca coincidencias en el texto del estado
-    const estadoLower = estado.toLowerCase();
-    if (estadoLower.includes('al-dia') || estadoLower.includes('pagado') || estadoLower.includes('activo')) {
-      estadoNormalizado = 'al-dia';
-    } else if (estadoLower.includes('retraso-leve') || estadoLower.includes('leve')) {
-      estadoNormalizado = 'retraso-leve';
-    } else if (estadoLower.includes('retraso-severo') || estadoLower.includes('severo') || estadoLower.includes('inactivo')) {
-      estadoNormalizado = 'retraso-severo';
+    // Verificar si tiene fecha_vencimiento
+    if (cliente.fecha_vencimiento) {
+      const fechaVencimiento = new Date(cliente.fecha_vencimiento);
+      fechaVencimiento.setHours(0, 0, 0, 0);
+      
+      if (!isNaN(fechaVencimiento.getTime())) {
+        // Calcular días de diferencia
+        const diffMs = hoy.getTime() - fechaVencimiento.getTime();
+        diasRetraso = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        // Aplicar tu lógica:
+        if (diasRetraso <= 0) {
+          // Al día (dentro de los 31 días desde pago)
+          estadoNormalizado = 'al-dia';
+          estadoTexto = 'Al Día';
+        } else if (diasRetraso > 0 && diasRetraso <= 15) {
+          // Retraso leve (hasta 15 días después de vencimiento)
+          estadoNormalizado = 'retraso-leve';
+          estadoTexto = `Retraso Leve (${diasRetraso} días)`;
+        } else if (diasRetraso > 15) {
+          // Retraso severo (más de 15 días después de vencimiento)
+          estadoNormalizado = 'retraso-severo';
+          estadoTexto = `Retraso Severo (${diasRetraso} días)`;
+        }
+      }
     }
     
-    // 3. CALCULAR DIAS DE RETRASO
-    let diasRetraso = cliente.dias_retraso || 0;
+    // Si no tiene fecha_vencimiento, mantener estado del backend o asignar inactivo
+    if (!cliente.fecha_vencimiento) {
+      const estadoBackend = cliente.estado_pago || cliente.estado_cuota || 'inactivo';
+      const estadoLower = estadoBackend.toLowerCase();
+      
+      if (estadoLower.includes('al-dia') || estadoLower.includes('pagado') || estadoLower.includes('activo')) {
+        estadoNormalizado = 'al-dia';
+        estadoTexto = 'Al Día';
+      } else if (estadoLower.includes('retraso-leve') || estadoLower.includes('leve')) {
+        estadoNormalizado = 'retraso-leve';
+        estadoTexto = 'Retraso Leve';
+      } else if (estadoLower.includes('retraso-severo') || estadoLower.includes('severo') || estadoLower.includes('inactivo')) {
+        estadoNormalizado = 'retraso-severo';
+        estadoTexto = 'Retraso Severo';
+      }
+    }
     
-    // 4. VALOR POR DEFECTO DE MENSUALIDAD
-    const mensualidad = cliente.mensualidad || 500;
+    // 3. VALOR POR DEFECTO DE MENSUALIDAD
+    const mensualidad = cliente.mensualidad || 24000; // Valor estándar
     
-    // 5. TELÉFONO FORMATEADO
+    // 4. TELÉFONO FORMATEADO
     const telefono = cliente.telefono || 'Sin teléfono';
     
-    // 6. EXTRAER FECHA DE CREACIÓN - ¡ESTO ES CLAVE!
-    // Busca en todos los campos posibles de fecha
+    // 5. EXTRAER FECHA DE CREACIÓN
     const fechaCreacion = cliente.fecha_creacion || cliente.created_at || cliente.fecha_registro || cliente.fecha_alta;
     
-    // 7. Calcular timestamp para ordenamiento fácil
+    // 6. Calcular timestamp para ordenamiento fácil
     const timestampCreacion = fechaCreacion ? new Date(fechaCreacion).getTime() : 0;
     
+    // 7. Formatear fecha de vencimiento para mostrar
+    let fechaVencimientoFormatted = 'Sin fecha';
+    if (cliente.fecha_vencimiento) {
+      try {
+        const fecha = new Date(cliente.fecha_vencimiento);
+        fechaVencimientoFormatted = fecha.toLocaleDateString('es-ES');
+      } catch (e) {
+        fechaVencimientoFormatted = 'Fecha inválida';
+      }
+    }
+    
     return {
-      // Campos originales para ordenamiento
-      ...cliente, // ← MANTIENE los campos originales
+      // Campos originales
+      ...cliente,
       
       // Campos procesados
       id: cliente.id || cliente.usuario_id,
@@ -209,15 +254,15 @@ export class PagosPage implements OnInit {
       estado: estadoNormalizado,
       estado_pago: cliente.estado_pago,
       estado_cuota: cliente.estado_cuota,
-      estado_texto: cliente.estado_texto,
+      estado_texto: estadoTexto, // ← Nuevo campo con texto descriptivo
       dias_retraso: diasRetraso,
       fecha_ultimo_pago: cliente.fecha_ultimo_pago,
       fecha_vencimiento: cliente.fecha_vencimiento,
-      fecha_vencimiento_formatted: cliente.fecha_vencimiento_formatted,
+      fecha_vencimiento_formatted: fechaVencimientoFormatted, // ← Fecha formateada
       
-      // FECHAS CRÍTICAS - Asegurar que están presentes
-      fecha_creacion: fechaCreacion, // Campo unificado
-      timestamp_creacion: timestampCreacion, // Para ordenar fácil
+      // Fechas para ordenamiento
+      fecha_creacion: fechaCreacion,
+      timestamp_creacion: timestampCreacion,
       
       carnet_url: cliente.carnet_url,
       whatsapp_link: cliente.whatsapp_link,
@@ -225,7 +270,7 @@ export class PagosPage implements OnInit {
     };
   });
   
-  console.log('✅ Clientes procesados (listos para ordenar)');
+  console.log('✅ Clientes procesados con nueva lógica de estados');
 }
 
 cargarClientes() {
@@ -312,23 +357,30 @@ cargarClientes() {
     }
   });
 }
-  calcularEstadisticas() {
+calcularEstadisticas() {
   this.totalClientes = this.clientes.length;
   this.alDiaCount = this.clientes.filter(c => c.estado === 'al-dia').length;
   this.retrasoLeveCount = this.clientes.filter(c => c.estado === 'retraso-leve').length;
   this.retrasoSeveroCount = this.clientes.filter(c => c.estado === 'retraso-severo').length;
-  this.totalMensual = this.clientes.reduce((sum, cliente) => {
-    // Si no tienes mensualidad en la API, usa un valor por defecto
-    return sum + (cliente.mensualidad || 0);
-  }, 0);
   
-  console.log('📊 Estadísticas:', {
-    total: this.totalClientes,
-    alDia: this.alDiaCount,
-    retrasoLeve: this.retrasoLeveCount,
-    retrasoSevero: this.retrasoSeveroCount,
-    totalMensual: this.totalMensual
-  });
+  // Calcular ingresos potenciales (solo clientes al día)
+  this.totalMensual = this.clientes
+    .filter(c => c.estado === 'al-dia')
+    .reduce((sum, cliente) => sum + (cliente.mensualidad || 0), 0);
+  
+  console.log('📊 Estadísticas NUEVA LÓGICA:');
+  console.log('- Total clientes:', this.totalClientes);
+  console.log('- Al día:', this.alDiaCount);
+  console.log('- Retraso leve:', this.retrasoLeveCount);
+  console.log('- Retraso severo:', this.retrasoSeveroCount);
+  console.log('- Ingresos mensuales (al día):', this.totalMensual);
+  
+  // Mostrar también en console los días promedio
+  const clientesConRetraso = this.clientes.filter(c => c.dias_retraso > 0);
+  if (clientesConRetraso.length > 0) {
+    const promedioRetraso = clientesConRetraso.reduce((sum, c) => sum + c.dias_retraso, 0) / clientesConRetraso.length;
+    console.log('- Promedio días retraso:', promedioRetraso.toFixed(1));
+  }
 }
 
   aplicarFiltros() {
@@ -388,7 +440,7 @@ cargarClientes() {
     }
   }
 
- async abrirWhatsApp(cliente: any) {
+async abrirWhatsApp(cliente: any) {
   console.log('📱 Intentando abrir WhatsApp para:', cliente.nombre_completo);
   console.log('📞 Teléfono del cliente:', cliente.telefono);
   
@@ -410,7 +462,6 @@ cargarClientes() {
       `El número ${cliente.telefono} no es válido para WhatsApp.`
     );
     return;
-    
   }
   
   console.log('✅ Número formateado:', numeroWhatsApp);
@@ -418,12 +469,70 @@ cargarClientes() {
   // Crear mensaje personalizado
   const nombre = cliente.nombre || cliente.nombre_completo || 'Cliente';
   const hoy = new Date();
-  const mesActual = hoy.getMonth() + 1; // Enero = 1
+  const mesActual = hoy.getMonth() + 1;
   const mesNombre = this.getNombreMes(mesActual);
-  const mensaje = `Hola ${nombre}, te enviamos el carnet de pago del mes de ${mesNombre}. ¡Nos vemos en el gimnasio!`;
-  const mensajeCodificado = encodeURIComponent(mensaje);
   
-  // Construir URL de WhatsApp
+  // ============================================
+  // ✅ URL DEL CARNET QUE SÍ FUNCIONA
+  // ============================================
+  
+  // Construir URL del carnet QUE SÍ ABRE EL CARNET
+  let urlCarnet = '';
+  if (cliente.carnet_url) {
+    // Si ya tiene carnet_url del backend, usarla
+    urlCarnet = `http://localhost:3000${cliente.carnet_url}`;
+    console.log('🔗 URL del backend:', urlCarnet);
+  } else if (cliente.nombre && cliente.apellido) {
+    // ✅ CONSTRUIR URL QUE SÍ FUNCIONA (como en MembersPage)
+    const año = hoy.getFullYear();
+    const mesNumero = hoy.getMonth() + 1;
+    
+    // Convertir número de mes a nombre en mayúsculas
+    const meses = [
+      'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+      'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+    ];
+    const mesNombreCarpeta = meses[mesNumero - 1];
+    
+    // Formatear nombre y apellido para coincidir con el archivo PNG
+    // Ejemplo: "Iglesias_Onix.png"
+    const nombreLimpio = this.limpiarNombreParaArchivo(cliente.nombre);
+    const apellidoLimpio = this.limpiarNombreParaArchivo(cliente.apellido);
+    
+    // ✅ URL QUE SÍ FUNCIONA
+    urlCarnet = `http://localhost:3000/storage/carnets/${año}/${mesNombreCarpeta}/${apellidoLimpio}_${nombreLimpio}.png`;
+    console.log('🔗 URL generada:', urlCarnet);
+  }
+  
+  // Construir mensaje PASO A PASO
+  let mensaje = '';
+  
+  // 1. Saludo con nombre completo
+  if (cliente.nombre && cliente.apellido) {
+    mensaje = `Hola ${cliente.nombre} ${cliente.apellido}`;
+  } else {
+    mensaje = `Hola ${nombre}`;
+  }
+  
+  // 2. Mensaje principal
+  mensaje += `, te enviamos el carnet de pago del mes de ${mesNombre}.\n\n`;
+  
+  // 3. ✅ URL del carnet (con salto de línea claro)
+  if (urlCarnet) {
+    mensaje += `🎫 Enlace a tu carnet:\n`;
+    mensaje += `${urlCarnet}\n\n`;
+    mensaje += `Haz clic en el enlace para ver tu carnet\n\n`;
+  } else {
+    mensaje += `⚠️ Tu carnet se está generando. En breve recibirás el enlace.\n\n`;
+  }
+  
+  // 4. Despedida
+  mensaje += `¡Nos vemos en el gimnasio!`;
+  
+  console.log('📄 Mensaje completo:', mensaje);
+  console.log('🔗 URL Carnet final:', urlCarnet);
+  
+  const mensajeCodificado = encodeURIComponent(mensaje);
   const urlWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${mensajeCodificado}`;
   
   console.log('🔗 URL WhatsApp:', urlWhatsApp);
@@ -432,6 +541,21 @@ cargarClientes() {
   window.open(urlWhatsApp, '_blank', 'noopener,noreferrer');
 }
 
+// ============================================
+// MÉTODO PARA LIMPIAR NOMBRES PARA ARCHIVO PNG
+// ============================================
+limpiarNombreParaArchivo(nombre: string): string {
+  if (!nombre) return '';
+  
+  return nombre
+    .trim()
+    .normalize('NFD')  // Separar acentos
+    .replace(/[\u0300-\u036f]/g, '')  // Eliminar diacríticos
+    .replace(/\s+/g, '_')  // Espacios por guiones bajos
+    .replace(/[^a-zA-Z0-9_]/g, '')  // Eliminar caracteres especiales
+    .replace(/_+/g, '_')  // Múltiples guiones por uno solo
+    .replace(/^_|_$/g, '');  // Quitar guiones al inicio/final
+}
 // Función para formatear número para WhatsApp
 formatearNumeroWhatsApp(telefono: string): string {
   if (!telefono) return '';

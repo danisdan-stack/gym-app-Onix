@@ -86,11 +86,11 @@
       <ion-list class="clients-list">
         <ion-item *ngFor="let client of getClientesFiltrados()" button (click)="viewMemberDetails(client.usuario_id)" lines="full" class="client-item">
           <ion-avatar slot="start" class="client-avatar">
-            <!-- Icono principal del cliente en celeste claro -->
-            <div class="avatar-icon-wrapper">
-              <ion-icon name="person" class="client-main-icon" color="light"></ion-icon>
-            </div>
-          </ion-avatar>
+  <!-- Iniciales como en Pagos -->
+  <div class="avatar-initials">
+    {{ (client.nombre?.charAt(0) || '') + (client.apellido?.charAt(0) || '') || '?' }}
+  </div>
+</ion-avatar>
           
           <ion-label class="client-info">
             <div class="client-header">
@@ -198,9 +198,3 @@
   </div>
 </ion-content>
 
-<!-- Floating Button -->
-<ion-fab vertical="bottom" horizontal="end" slot="fixed">
-  <ion-fab-button color="primary">
-    <ion-icon name="add" color="light"></ion-icon>
-  </ion-fab-button>
-</ion-fab>

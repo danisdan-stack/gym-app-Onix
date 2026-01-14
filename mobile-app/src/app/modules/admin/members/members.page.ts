@@ -237,20 +237,40 @@ getAvisoPorVencer(cliente: Cliente): string {
     return `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
   }
 
-  generarMensajeWhatsApp(cliente: Cliente): string {
-    const clienteId = (cliente as any).usuario_id;
-    const backendUrl = 'http://localhost:3000';
-    
-    let mensaje = `*¡HOLA ${cliente.nombre.toUpperCase()}!*\n\nTu registro en ONIX GYM ha sido completado\n\n`;
-    
-    if (clienteId) {
-      const urlCompleta = `${backendUrl}/api/carnets/ver/${clienteId}`;
-      mensaje += `*🎫 Tu carnet digital:*\n${urlCompleta}\n\n_Haz clic en el enlace para ver tu carnet_\n\n`;
-    }
-    
-    mensaje += `*Formulario para completar con tus datos:* https://forms.gle/RjDLmzH29UeocWcV8\n\n🏋️ ¡Nos vemos en el gym! 💪`;
-    return mensaje;
-  }
+generarMensajeWhatsApp(cliente: Cliente): string {
+  const backendUrl = 'http://localhost:3000';
+  
+  // ✅ ENLACE DIRECTAMENTE CLICKEABLE
+  const urlCarnet = `${backendUrl}/api/carnets/descargar/${cliente.usuario_id}`;
+  
+  // 📱 MENSAJE OPTIMIZADO PARA WHATSAPP (los enlaces ya son clicables)
+  let mensaje = `*¡HOLA ${cliente.nombre.toUpperCase()}!*\n\n`;
+  mensaje += `Tu registro en ONIX GYM ha sido completado ✅\n\n`;
+  
+  mensaje += `*🎫 TU CARNET DIGITAL:*\n`;
+  mensaje += `${urlCarnet}\n\n`;
+  mensaje += `*👉 HAZ CLIC EN EL ENLACE DE ARRIBA*\n`;
+  mensaje += `Se abrirá tu carnet para ver/descargar 📱\n\n`;
+  
+  mensaje += `*📝 Formulario de datos:*\n`;
+  mensaje += `https://forms.gle/RjDLmzH29UeocWcV8\n\n`;
+  
+  mensaje += `🏋️ *¡Te esperamos!* 💪`;
+  
+  return mensaje;
+}
+
+// Método auxiliar para formatear nombres (OPCIONAL - si necesitas limpiar caracteres)
+formatearNombreUrl(nombre: string): string {
+  if (!nombre) return '';
+  
+  return nombre
+    .trim()
+    .normalize('NFD')  // Separar acentos
+    .replace(/[\u0300-\u036f]/g, '')  // Eliminar diacríticos
+    .replace(/\s+/g, '_')  // Espacios por guiones bajos
+    .replace(/[^a-zA-Z0-9_]/g, '');  // Eliminar caracteres especiales
+}
 
   filterByStatus(event: any) {
     this.filterStatus = event.detail.value;
@@ -370,3 +390,4 @@ getAvisoPorVencer(cliente: Cliente): string {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 }
+
