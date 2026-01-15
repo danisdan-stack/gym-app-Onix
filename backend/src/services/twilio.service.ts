@@ -1,4 +1,4 @@
-// src/services/twilio.service.ts - VERSIÓN COMPLETA Y FUNCIONAL
+/// backend/src/services/twilio.service.ts - VERSIÓN OPCIONAL
 import twilio from 'twilio';
 
 // Interface para la respuesta de Twilio
@@ -17,21 +17,40 @@ export class TwilioService {
   }
   private client: any;
   private fromNumber: string;
+  private isEnabled: boolean = false; // Nueva propiedad para controlar estado
 
   constructor() {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     this.fromNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886';
 
+    // Verificar si las credenciales están disponibles
     if (!accountSid || !authToken) {
-      console.error('❌ ERROR: Credenciales de Twilio faltantes');
-      console.log('Account SID:', accountSid ? '✓' : '✗');
-      console.log('Auth Token:', authToken ? '✓' : '✗');
-      throw new Error('Twilio credentials not found in .env');
+      console.warn('⚠️  Twilio credentials not found. WhatsApp functionality will be disabled.');
+      console.warn('   Account SID:', accountSid ? '✓' : '✗');
+      console.warn('   Auth Token:', authToken ? '✓' : '✗');
+      console.warn('   To enable WhatsApp, set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in Render environment variables.');
+      this.isEnabled = false;
+      this.client = null;
+      return; // Importante: NO lanzar error, solo salir
     }
 
-    console.log('✅ Twilio configurado correctamente');
-    this.client = twilio(accountSid, authToken);
+    try {
+      console.log('✅ Twilio configurado correctamente');
+      this.client = twilio(accountSid, authToken);
+      this.isEnabled = true;
+    } catch (error) {
+      console.error('❌ Error initializing Twilio:', error);
+      this.isEnabled = false;
+      this.client = null;
+    }
+  }
+
+  /**
+   * Verificar si Twilio está habilitado
+   */
+  get isTwilioEnabled(): boolean {
+    return this.isEnabled;
   }
 
   /**
@@ -41,6 +60,18 @@ export class TwilioService {
     cliente: { id: any; nombre: string; apellido: string; telefono: string }, 
     urlCarnet: string
   ): Promise<TwilioMessageResponse> {
+    // Verificar si Twilio está habilitado
+    if (!this.isEnabled || !this.client) {
+      console.warn(`⚠️  Twilio disabled. WhatsApp welcome message skipped for ${cliente.nombre}`);
+      return {
+        sid: 'disabled-' + Date.now(),
+        status: 'disabled',
+        to: cliente.telefono,
+        from: 'system',
+        error: 'Twilio service is disabled'
+      };
+    }
+
     try {
       const telefonoFormateado = this.formatearTelefono(cliente.telefono);
       
@@ -57,7 +88,7 @@ export class TwilioService {
         from: this.fromNumber,
         to: `whatsapp:${telefonoFormateado}`,
         body: mensaje,
-        mediaUrl: [urlCarnet] // ← ¡IMAGEN COMO MOSAICO!
+        mediaUrl: [urlCarnet]
       });
       
       console.log(`✅ WhatsApp enviado. SID: ${resultado.sid}`);
@@ -73,7 +104,6 @@ export class TwilioService {
     } catch (error: any) {
       console.error('❌ Error enviando bienvenida por WhatsApp:', error.message);
       
-      // Retornar error estructurado
       return {
         sid: 'error-' + Date.now(),
         status: 'failed',
@@ -92,6 +122,18 @@ export class TwilioService {
     pago: { id: any; monto: number; fecha_vencimiento: string; periodo_mes?: number; periodo_ano?: number },
     urlCarnet: string
   ): Promise<TwilioMessageResponse> {
+    // Verificar si Twilio está habilitado
+    if (!this.isEnabled || !this.client) {
+      console.warn(`⚠️  Twilio disabled. WhatsApp renewal message skipped for ${cliente.nombre}`);
+      return {
+        sid: 'disabled-' + Date.now(),
+        status: 'disabled',
+        to: cliente.telefono,
+        from: 'system',
+        error: 'Twilio service is disabled'
+      };
+    }
+
     try {
       const telefonoFormateado = this.formatearTelefono(cliente.telefono);
       
@@ -138,9 +180,20 @@ export class TwilioService {
   }
 
   /**
-   * Enviar mensaje simple de prueba
+   * Enviar mensaje simple de prueba (solo si Twilio está habilitado)
    */
   async enviarMensajePrueba(telefonoDestino: string): Promise<TwilioMessageResponse> {
+    if (!this.isEnabled || !this.client) {
+      console.warn('⚠️  Twilio disabled. Test message skipped');
+      return {
+        sid: 'disabled-' + Date.now(),
+        status: 'disabled',
+        to: telefonoDestino,
+        from: 'system',
+        error: 'Twilio service is disabled'
+      };
+    }
+
     try {
       const telefonoFormateado = this.formatearTelefono(telefonoDestino);
       
@@ -183,6 +236,17 @@ export class TwilioService {
     urlImagen: string, 
     cliente: { nombre: string; apellido?: string }
   ): Promise<TwilioMessageResponse> {
+    if (!this.isEnabled || !this.client) {
+      console.warn('⚠️  Twilio disabled. Carnet message skipped');
+      return {
+        sid: 'disabled-' + Date.now(),
+        status: 'disabled',
+        to: telefonoDestino,
+        from: 'system',
+        error: 'Twilio service is disabled'
+      };
+    }
+
     try {
       const telefonoFormateado = this.formatearTelefono(telefonoDestino);
       
@@ -262,11 +326,16 @@ export class TwilioService {
   }
 
   /**
-   * Verificar conexión con Twilio
+   * Verificar conexión con Twilio (solo si está habilitado)
    */
   async verificarConexion(): Promise<boolean> {
+    if (!this.isEnabled || !this.client) {
+      console.warn('⚠️  Twilio disabled, connection check skipped');
+      return false;
+    }
+
     try {
-      await this.client.api.accounts(process.env.TWILIO_ACCOUNT_SID).fetch();
+      await this.client.api.accounts(process.env.TWILIO_ACCOUNT_SID!).fetch();
       console.log('✅ Twilio conectado correctamente');
       return true;
     } catch (error) {

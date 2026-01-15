@@ -1,24 +1,24 @@
-// src/controllers/pago.controller.ts - VERSIÓN FINAL
+// src/controllers/pago.controller.ts - VERSIÓN FINAL (Twilio Deshabilitado)
 import { Request, Response } from 'express';
 import pool from '../config/database';
 import { PagoModel } from '../models/pago.model'; 
 import { IPagoCreate } from '../models/interfaces/pago.interface';
-import { TwilioService } from '../services/twilio.service';
+// import { TwilioService } from '../services/twilio.service'; // DESHABILITADO
 import { CarnetService } from '../services/carnet.service';
 
 // Inicializar servicios
 let pagoModel: PagoModel;
-let twilioService: TwilioService;
+// let twilioService: TwilioService; // DESHABILITADO
 let carnetService: CarnetService;
 
 try {
   pagoModel = new PagoModel(pool);
-  twilioService = new TwilioService();
+  // twilioService = new TwilioService(); // DESHABILITADO
   carnetService = new CarnetService();
 } catch (error) {
   console.error('Error inicializando servicios:', error);
   pagoModel = {} as PagoModel;
-  twilioService = {} as TwilioService;
+  // twilioService = {} as TwilioService; // DESHABILITADO
   carnetService = {} as CarnetService;
 }
 
@@ -286,6 +286,7 @@ export const registrarPagoCliente = async (req: Request, res: Response) => {
     client.release();
   }
 };
+
 // ============================================
 // FUNCIÓN: Registrar pago general (optimizada)
 // ============================================
@@ -449,7 +450,7 @@ export const registrarPago = async (req: Request, res: Response) => {
       }
     }
 
-    // 4. Enviar WhatsApp en segundo plano
+    // 4. Enviar WhatsApp en segundo plano (DESHABILITADO)
     if (pagoData.estado === 'pagado') {
       enviarNotificacionPago(
         pagoData.cliente_id,
@@ -470,7 +471,7 @@ export const registrarPago = async (req: Request, res: Response) => {
         pago: pagoCreado,
         carnet: carnetInfo,
         notificacion: {
-          whatsapp: 'Enviando...'
+          whatsapp: 'Servicio deshabilitado temporalmente'
         }
       }
     });
@@ -527,16 +528,15 @@ function calcularFechaVencimiento(pagoData: IPagoCreate): string | null {
 }
 
 // ============================================
-// FUNCIONES AUXILIARES EXISTENTES
+// FUNCIONES AUXILIARES EXISTENTES (MODIFICADAS)
 // ============================================
 
 async function enviarNotificacionPago(clienteId: number, pagoData: any, carnetUrl?: string): Promise<void> {
   try {
-    if (!twilioService || !twilioService.enviarMensajeWhatsApp) {
-      console.log('⚠️ TwilioService no disponible');
-      return;
-    }
-
+    console.log(`⚠️  Notificación de pago DESHABILITADA para cliente ${clienteId}`);
+    console.log(`📱  Mensaje que se enviaría (Twilio deshabilitado):`);
+    
+    // Mantén esta lógica solo para logging
     const clienteResult = await pool.query(
       `SELECT c.*, u.email 
        FROM cliente c 
@@ -575,39 +575,19 @@ async function enviarNotificacionPago(clienteId: number, pagoData: any, carnetUr
     mensaje += `¡Gracias por tu pago puntual! 💪\n`;
     mensaje += `_Onix Gym Team_`;
 
-    await twilioService.enviarMensajeWhatsApp(
-      cliente.telefono,
-      mensaje,
-      carnetUrl ? `http://localhost:3000${carnetUrl}` : undefined
-    );
-
-    console.log(`✅ Notificación enviada a ${cliente.telefono}`);
+    console.log(`📲  Para: ${cliente.telefono}`);
+    console.log(`📝  Mensaje:\n${mensaje}`);
+    console.log(`ℹ️  Notificación deshabilitada (Twilio no disponible)`);
 
   } catch (error: any) {
-    console.error('⚠️ Error enviando notificación WhatsApp:', error.message);
+    console.error('⚠️ Error generando notificación (solo log):', error.message);
   }
 }
-
-// ============================================
-// FUNCIONES RESTANTES (mantener igual)
-// ============================================
-
-// [Mantén aquí las funciones existentes que ya tienes en tu archivo pago.controller.ts]
-// - listarPagos
-// - obtenerPago
-// - actualizarPago
-// - notificarProximosVencimientos
-// - obtenerPagosPorCliente
-// - enviarRecordatorioRenovacion
-// [Cópialas exactamente como las tienes]
 
 // Función para enviar notificación de renovación pendiente
 async function enviarRecordatorioRenovacion(clienteId: number, fechaVencimiento: Date): Promise<void> {
   try {
-    if (!twilioService || !twilioService.enviarMensajeWhatsApp) {
-      console.log('⚠️ TwilioService no disponible para recordatorios');
-      return;
-    }
+    console.log(`⚠️  Recordatorio DESHABILITADO para cliente ${clienteId}`);
 
     const clienteResult = await pool.query(
       `SELECT c.*, u.email 
@@ -635,16 +615,12 @@ async function enviarRecordatorioRenovacion(clienteId: number, fechaVencimiento:
     mensaje += `¡No pierdas tus beneficios! 💪\n`;
     mensaje += `_Onix Gym Team_`;
 
-    await twilioService.enviarMensajeWhatsApp(
-      cliente.telefono,
-      mensaje,
-      undefined  
-    );
-
-    console.log(`✅ Recordatorio enviado a ${cliente.telefono}`);
+    console.log(`📲  Recordatorio para: ${cliente.telefono}`);
+    console.log(`📝  Mensaje:\n${mensaje}`);
+    console.log(`ℹ️  Recordatorio deshabilitado (Twilio no disponible)`);
 
   } catch (error: any) {
-    console.error('⚠️ Error enviando recordatorio:', error.message);
+    console.error('⚠️ Error generando recordatorio (solo log):', error.message);
   }
 }
 
@@ -936,7 +912,7 @@ export const notificarProximosVencimientos = async (req: Request, res: Response)
 
     res.json({
       success: true,
-      message: `Notificaciones de vencimiento procesadas`,
+      message: `Notificaciones de vencimiento procesadas (Twilio deshabilitado)`,
       data: {
         total_clientes: clientes.length,
         notificaciones_enviadas: notificacionesEnviadas,

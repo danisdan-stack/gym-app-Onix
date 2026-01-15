@@ -10,7 +10,7 @@ import entrenadorRoutes from './routes/entrenador.routes';
 import authRoutes from './routes/auth.routes';
 import clienteRoutes from './routes/cliente.routes';
 import dashboardRoutes from './routes/dashboard.routes';
-import twilioRoutes from './routes/twilio.routes';
+// import twilioRoutes from './routes/twilio.routes'; // DESHABILITADO
 // Importar los controladores que necesitas
 import { 
   listarClientesConCarnet, 
@@ -63,7 +63,9 @@ app.get('/api/clientes-simplificado', listarClientesSimplificado);
 app.get('/favicon.ico', (req, res) => {
   res.status(204).end(); // No Content
 });
-app.use('/api/twilio', twilioRoutes);
+
+// COMENTAR O ELIMINAR ESTA LÍNEA:
+// app.use('/api/twilio', twilioRoutes);
 
 // ======================
 // RUTAS DE HEALTH CHECK
@@ -84,6 +86,7 @@ app.get('/health', (req, res) => {
       carnets: '/api/carnets',
       entrenadores: '/api/entrenadores',
       dashboard: '/api/v1/dashboard'
+      // twilio: '/api/twilio' // REMOVER
     }
   });
 });
@@ -117,8 +120,14 @@ app.get('/api/v1/health', (req, res) => {
         
         // Entrenadores
         listar_entrenadores: 'GET /api/entrenadores'
+        
+        // Twilio deshabilitado
+        // twilio: 'GET /api/twilio/status - DESHABILITADO'
       },
-      status: 'active'
+      status: 'active',
+      servicios: {
+        twilio: 'deshabilitado'
+      }
     }
   });
 });
@@ -150,6 +159,10 @@ app.get('/', (req, res) => {
         carnets: 'GET /api/carnets/descargar/:id',
         entrenadores: 'GET /api/entrenadores',
         dashboard: 'GET /api/v1/dashboard/estadisticas'
+      },
+      
+      servicios: {
+        twilio: 'DESHABILITADO - Configura credenciales para habilitar'
       }
     }
   });
@@ -208,5 +221,6 @@ app.listen(PORT, () => {
   console.log(`   👥 http://localhost:${PORT}/api/clientes`);
   console.log(`   🎫 http://localhost:${PORT}/api/clientes-con-carnet`);
   console.log(`   📋 http://localhost:${PORT}/api/clientes-simplificado`);
+  console.log(`   ⚠️  /api/twilio - DESHABILITADO`);
   console.log('🚀 ========================================');
 });
