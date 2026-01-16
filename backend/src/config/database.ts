@@ -3,40 +3,84 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-console.log('🔍 Checking database configuration...');
-console.log('🔍 DATABASE_URL:', process.env.DATABASE_URL ? '✅ Present' : '❌ Missing');
-console.log('🔍 NODE_ENV:', process.env.NODE_ENV || 'development');
+console.log('=========================================');
+console.log('🏋️‍♂️ ONIX GYM - Inicializando BD');
+console.log('=========================================');
 
-// Usar DATABASE_URL si está disponible (para Render/Supabase)
-// Si no, usar las variables individuales (para desarrollo local)
-const connectionConfig = process.env.DATABASE_URL 
-  ? {
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? {
-        rejectUnauthorized: false  // ¡IMPORTANTE para Supabase!
-      } : false
+// CONFIGURACIÓN CON SESSION POOLER
+const poolConfig = {
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  },
+  max: 10,
+  connectionTimeoutMillis: 30000,
+  idleTimeoutMillis: 30000
+};
+
+console.log('🔧 Usando Session Pooler de Supabase');
+console.log('📍 Región: us-west-2');
+console.log('🔐 SSL: Habilitado');
+
+const pool = new Pool(poolConfig);
+
+// TEST DE CONEXIÓN
+const testConnection = async () => {
+  console.log('\n🔌 Probando conexión...');
+  
+  try {
+    const client = await pool.connect();
+    console.log('✅ CONEXIÓN EXITOSA!');
+    
+    // Información de la conexión
+    const info = await client.query(`
+      SELECT 
+        NOW() as hora,
+        current_database() as bd,
+        current_user as usuario,
+        inet_server_addr() as ip_servidor
+    `);
+    
+    console.log('\n📊 INFORMACIÓN DE CONEXIÓN:');
+    console.log(`   ⏰ Hora servidor: ${info.rows[0].hora}`);
+    console.log(`   🗄️  Base de datos: ${info.rows[0].bd}`);
+    console.log(`   👤 Usuario: ${info.rows[0].usuario}`);
+    console.log(`   🌐 IP servidor: ${info.rows[0].ip_servidor}`);
+    
+    // Verificar tablas
+    const tables = await client.query(`
+      SELECT COUNT(*) as total 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `);
+    
+    console.log(`   📋 Tablas públicas: ${tables.rows[0].total}`);
+    
+    client.release();
+    
+    console.log('\n🎉 SISTEMA LISTO PARA OPERAR!');
+    console.log('=========================================\n');
+    
+  } catch (error) {
+    console.error('\n💥 ERROR DE CONEXIÓN:');
+    console.error(`   ${error.message}`);
+    
+    console.error('\n🔍 DIAGNÓSTICO:');
+    
+    if (error.message.includes('password authentication')) {
+      console.error('   ❌ Error de autenticación');
+      console.error('   💡 Verifica la contraseña en DATABASE_URL');
+    } else if (error.message.includes('timeout')) {
+      console.error('   ❌ Timeout de conexión');
+      console.error('   💡 La URL puede ser incorrecta');
     }
-  : {
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'bd_gym',
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || '',
-      ssl: false
-    };
+    
+    console.error('\n📝 TU CONFIGURACIÓN DEBE SER:');
+    console.error('   DATABASE_URL=postgresql://postgres.shkzfvmxawargmdssrsr:CONTRASEÑA@aws-0-us-west-2.pooler.supabase.com:5432/postgres');
+  }
+};
 
-const pool = new Pool(connectionConfig);
+// Ejecutar test
+setTimeout(testConnection, 1500);
 
-// Eventos para monitorear la conexción
-pool.on('connect', () => {
-  console.log('✅ Conectado a PostgreSQL');
-  console.log('📊 Modo:', process.env.DATABASE_URL ? 'Supabase (URL)' : 'Local (individual vars)');
-});
-
-pool.on('error', (err: NodeJS.ErrnoException) => {
-  console.error('❌ Error de conexion a BD:', err.message);
-  console.error('Código error:', err.code);
-});
-
-// Exporta el pool para usarlo en todo el proyecto
 export default pool;

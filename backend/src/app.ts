@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.routes';
 import clienteRoutes from './routes/cliente.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import pool from './config/database'; 
+
 // import twilioRoutes from './routes/twilio.routes'; // DESHABILITADO
 // Importar los controladores que necesitas
 import { 
@@ -25,25 +26,65 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ======================
+// CONFIGURACIÓN CORS CORREGIDA
+// ======================
+
+// Lista de orígenes permitidos
+const allowedOrigins = [
+  'https://gym-app-frontend-a7jl.onrender.com', // FRONTEND en Render
+  'https://gym-app-n77p.onrender.com',          // BACKEND en Render
+  'http://localhost:8100',                      // Ionic local
+  'http://localhost:4200',                      // Angular local
+  'http://localhost:3000'                       // Backend local
+];
+
+// Opciones de CORS
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Permite solicitudes sin origen (como mobile apps, curl, postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Verificar si el origen está en la lista blanca
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log(`⚠️  Origen bloqueado por CORS: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'Accept', 
+    'Origin', 
+    'X-Requested-With',
+    'X-Access-Token'
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 horas para cache de preflight
+};
+
+// Aplicar CORS globalmente
+app.use(cors(corsOptions));
+
+// IMPORTANTE: Manejar solicitudes OPTIONS (preflight) para todas las rutas
+app.options('*', cors(corsOptions));
+
+// ======================
 // MIDDLEWARES GLOBALES
 // ======================
 app.use(helmet());
-
-// Configurar CORS correctamente (solo una vez)
-app.use(cors({
-  origin: [ 'https://gym-app-frontend-a7jl.onrender.com', // FRONTEND
-    'https://gym-app-n77p.onrender.com','http://localhost:8100', 'http://localhost:4200'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
-}));
-
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // 📁 SERVIR ARCHIVOS ESTÁTICOS (carnets PNG)
 app.use('/storage', express.static(path.join(__dirname, '../storage')));
+
 // ======================
 // DIAGNÓSTICO DE BASE DE DATOS
 // ======================
@@ -104,6 +145,74 @@ app.get('/api/db-test', async (req, res) => {
       code: error.code,
       stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
       suggestion: 'Verificar conexión SSL a Supabase'
+    });
+  }
+});
+
+// Endpoint de diagnóstico profundo
+app.get('/api/debug-clientes', async (req, res) => {
+  console.log('🔍 DEBUG /api/clientes iniciando...');
+  
+  try {
+    // 1. Verificar pool
+    console.log('1. ✅ Pool disponible:', !!pool);
+    
+    // 2. Verificar conexión básica
+    const test1 = await pool.query('SELECT 1 as test');
+    console.log('2. ✅ SELECT 1 OK:', test1.rows[0]);
+    
+    // 3. Verificar si tabla cliente existe
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'cliente'
+      ) as table_exists
+    `);
+    
+    const tableExists = tableCheck.rows[0].table_exists;
+    console.log('3. ✅ Tabla "cliente" existe:', tableExists);
+    
+    if (!tableExists) {
+      return res.json({
+        success: false,
+        error: 'Tabla "cliente" no existe en la base de datos',
+        solution: 'Ejecuta CREATE TABLE cliente (...) en Supabase'
+      });
+    }
+    
+    // 4. Ver estructura de la tabla
+    const structure = await pool.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns
+      WHERE table_name = 'cliente'
+      ORDER BY ordinal_position
+    `);
+    
+    console.log('4. ✅ Estructura tabla:');
+    structure.rows.forEach(col => {
+      console.log(`   - ${col.column_name} (${col.data_type})`);
+    });
+    
+    // 5. Intentar SELECT simple
+    const sampleData = await pool.query('SELECT * FROM cliente LIMIT 5');
+    console.log('5. ✅ Datos de ejemplo:', sampleData.rows);
+    
+    res.json({
+      success: true,
+      table_exists: tableExists,
+      table_structure: structure.rows,
+      sample_data: sampleData.rows,
+      total_records: sampleData.rowCount
+    });
+    
+  } catch (error: any) {
+    console.error('❌ DEBUG ERROR:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -263,6 +372,7 @@ app.use((error: any, req: any, res: any, next: any) => {
   });
 });
 
+// Header adicional para evitar advertencias
 app.use((req, res, next) => {
   res.setHeader('ngrok-skip-browser-warning', 'true');
   next();
@@ -286,5 +396,8 @@ app.listen(PORT, () => {
   console.log(`   🎫 http://localhost:${PORT}/api/clientes-con-carnet`);
   console.log(`   📋 http://localhost:${PORT}/api/clientes-simplificado`);
   console.log(`   ⚠️  /api/twilio - DESHABILITADO`);
+  console.log('🚀 ========================================');
+  console.log('🌐 CORS Configurado para:');
+  allowedOrigins.forEach(origin => console.log(`   ✅ ${origin}`));
   console.log('🚀 ========================================');
 });

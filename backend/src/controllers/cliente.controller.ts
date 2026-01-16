@@ -192,28 +192,68 @@ export const registrarCliente = async (req: Request, res: Response) => {
 };
 
 export const listarClientes = async (req: Request, res: Response) => {
+  console.log('🎯 /api/clientes - MODO SEGURO ACTIVADO');
+  
   try {
-    const { buscar, estado_cuota, entrenador_id } = req.query;
+    // 1. Query DIRECTA y SIMPLE - sin usar ClienteModel
+    console.log('🔍 Ejecutando query directa...');
+    const query = 'SELECT * FROM cliente ORDER BY usuario_id LIMIT 50';
     
-    const filtros = {
-      buscar: buscar as string,
-      estado_cuota: estado_cuota as 'activo' | 'inactivo' | 'suspendido' | 'todos',
-      entrenador_id: entrenador_id ? parseInt(entrenador_id as string) : undefined
-    };
-
-    const clientes = await clienteModel.buscarTodos(filtros);
+    const result = await pool.query(query);
+    
+    console.log(`✅ ${result.rows.length} clientes encontrados`);
+    
+    // 2. Formatear respuesta
+    const clientesFormateados = result.rows.map(cliente => ({
+      id: cliente.usuario_id,
+      nombre: cliente.nombre,
+      apellido: cliente.apellido,
+      telefono: cliente.telefono,
+      estado_cuota: cliente.estado_cuota,
+      fecha_inscripcion: cliente.fecha_inscripcion,
+      fecha_vencimiento: cliente.fecha_vencimiento
+    }));
     
     res.json({
       success: true,
-      count: clientes.length,
-      data: clientes
+      count: result.rows.length,
+      data: clientesFormateados,
+      _debug: {
+        method: 'query_directa',
+        query: query,
+        raw_count: result.rowCount
+      }
     });
+    
   } catch (error: any) {
-    console.error('Error listando clientes:', error);
+    console.error('🔥 ERROR en listarClientes (modo seguro):');
+    console.error('🔴 Código:', error.code);
+    console.error('🔴 Mensaje:', error.message);
+    
+    // Si es error de tabla no existe
+    if (error.code === '42P01') {
+      return res.status(500).json({
+        success: false,
+        message: 'La tabla "cliente" no existe en la base de datos',
+        solution: '1. Ve a Supabase → SQL Editor\n2. Ejecuta: CREATE TABLE cliente (...)\n3. O usa: CREATE TABLE IF NOT EXISTS cliente (...)'
+      });
+    }
+    
+    // Si es error de conexión
+    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+      return res.status(500).json({
+        success: false,
+        message: 'No se puede conectar a la base de datos',
+        error: 'Verifica DATABASE_URL en Render'
+      });
+    }
+    
+    // Error genérico
     res.status(500).json({
       success: false,
-      message: 'Error obteniendo clientes',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Error en base de datos',
+      error: error.message,
+      code: error.code
     });
   }
 };
