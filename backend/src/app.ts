@@ -30,7 +30,8 @@ app.use(helmet());
 
 // Configurar CORS correctamente (solo una vez)
 app.use(cors({
-  origin: ['http://localhost:8100', 'http://localhost:4200'],
+  origin: [ 'https://gym-app-frontend-a7jl.onrender.com', // FRONTEND
+    'https://gym-app-n77p.onrender.com','http://localhost:8100', 'http://localhost:4200'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept']

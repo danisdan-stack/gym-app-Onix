@@ -832,4 +832,4 @@ goToRapido(){
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
   }
-}
+} 
