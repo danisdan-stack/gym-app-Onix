@@ -58,7 +58,7 @@ export class MembersPage implements OnInit {
   loading = true;
   errorMessage = '';
 
-  private apiUrl = 'http://localhost:3000/api';
+  private apiUrl = 'https://gym-app-n77p.onrender.com/api';
 
   constructor(
     private router: Router,
@@ -238,7 +238,7 @@ getAvisoPorVencer(cliente: Cliente): string {
   }
 
 generarMensajeWhatsApp(cliente: Cliente): string {
-  const backendUrl = 'http://localhost:3000';
+  const backendUrl = 'https://gym-app-n77p.onrender.com';
   
   // ✅ ENLACE DIRECTAMENTE CLICKEABLE
   const urlCarnet = `${backendUrl}/api/carnets/descargar/${cliente.usuario_id}`;
@@ -386,8 +386,9 @@ formatearNombreUrl(nombre: string): string {
   descargarCarnet(cliente: Cliente) {
     const clienteId = (cliente as any).usuario_id;
     if (!clienteId) return;
-    const url = `http://localhost:3000/api/carnets/descargar/${clienteId}`;
+    const url = `https://gym-app-n77p.onrender.com/api/carnets/descargar/${clienteId}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 }
+
 

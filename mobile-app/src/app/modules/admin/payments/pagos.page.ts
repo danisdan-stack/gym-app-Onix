@@ -277,7 +277,7 @@ cargarClientes() {
   this.isLoading = true;
   
   // URL CORRECTA que ya funciona
-  const url = 'http://localhost:3000/api/clientes';
+  const url = 'https://gym-app-n77p.onrender.com/api/clientes';
   
   this.http.get<any>(url).subscribe({
     next: (response) => {
@@ -480,7 +480,7 @@ async abrirWhatsApp(cliente: any) {
   let urlCarnet = '';
   if (cliente.carnet_url) {
     // Si ya tiene carnet_url del backend, usarla
-    urlCarnet = `http://localhost:3000${cliente.carnet_url}`;
+    urlCarnet = `https://gym-app-n77p.onrender.com${cliente.carnet_url}`;
     console.log('🔗 URL del backend:', urlCarnet);
   } else if (cliente.nombre && cliente.apellido) {
     // ✅ CONSTRUIR URL QUE SÍ FUNCIONA (como en MembersPage)
@@ -500,7 +500,7 @@ async abrirWhatsApp(cliente: any) {
     const apellidoLimpio = this.limpiarNombreParaArchivo(cliente.apellido);
     
     // ✅ URL QUE SÍ FUNCIONA
-    urlCarnet = `http://localhost:3000/storage/carnets/${año}/${mesNombreCarpeta}/${apellidoLimpio}_${nombreLimpio}.png`;
+    urlCarnet = `https://gym-app-n77p.onrender.com/storage/carnets/${año}/${mesNombreCarpeta}/${apellidoLimpio}_${nombreLimpio}.png`;
     console.log('🔗 URL generada:', urlCarnet);
   }
   
@@ -613,7 +613,7 @@ async confirmarPago(cliente: any) {
     };
     
     console.log('📤 Enviando pago:', pagoData);
-    const url = 'http://localhost:3000/api/pagos/cliente';
+    const url = 'https://gym-app-n77p.onrender.com/api/pagos/cliente';
     const response: any = await lastValueFrom(this.http.post(url, pagoData));
     
     await loading.dismiss();
@@ -649,7 +649,7 @@ ID Transacción: ${response.data.pago?.id || 'N/A'}
             cssClass: 'carnet-button',
             handler: () => {
               if (response.data.carnet?.url) {
-                const carnetUrl = `http://localhost:3000${response.data.carnet.url}`;
+                const carnetUrl = `https://gym-app-n77p.onrender.com${response.data.carnet.url}`;
                 window.open(carnetUrl, '_blank');
               }
               this.cargarClientes();
@@ -803,7 +803,7 @@ async mostrarAlertaExito(cliente: any, pagoData: any, responseData: any) {
         cssClass: 'carnet-button',
         handler: () => {
           if (responseData.carnet?.url) {
-            const carnetUrl = `http://localhost:3000${responseData.carnet.url}`;
+            const carnetUrl = `https://gym-app-n77p.onrender.com${responseData.carnet.url}`;
             window.open(carnetUrl, '_blank');
           }
           this.cargarClientes();
@@ -962,7 +962,7 @@ async enviarComprobanteWhatsApp(cliente: any, pagoData?: any) {
   
   // Agregar enlace al carnet si está disponible
   if (pagoData.carnet?.url) {
-    const carnetUrl = `http://localhost:3000${pagoData.carnet.url}`;
+    const carnetUrl = `https://gym-app-n77p.onrender.com${pagoData.carnet.url}`;
     mensaje += `🎫 *Tu carnet actualizado:*\n`;
     mensaje += `${carnetUrl}\n\n`;
   }
@@ -995,7 +995,7 @@ async registrarPago(cliente: any) {
 
   verCarnet(cliente: any) {
     if (cliente.carnet_url) {
-      const url = `http://localhost:3000${cliente.carnet_url}`;
+      const url = `https://gym-app-n77p.onrender.com${cliente.carnet_url}`;
       window.open(url, '_blank');
     } else {
       this.mostrarAlerta('Sin Carnet', 'Este cliente no tiene carnet generado');
@@ -1014,7 +1014,7 @@ async registrarPago(cliente: any) {
         handler: () => {
           // ✅ MISMA LÓGICA QUE FUNCIONA
           if (cliente.carnet_url) {
-            const carnetUrl = `http://localhost:3000${cliente.carnet_url}`;
+            const carnetUrl = `https://gym-app-n77p.onrender.com${cliente.carnet_url}`;
             console.log('🔗 Abriendo carnet:', carnetUrl);
             window.open(carnetUrl, '_blank');
           } else {
