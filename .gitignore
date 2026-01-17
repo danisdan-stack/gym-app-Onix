@@ -1,4 +1,4 @@
-﻿# Dependencias
+# Dependencias
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -23,7 +23,9 @@ Thumbs.db
 
 # Backend - Archivos sensibles/grandes
 backend/storage/carnets/**
-backend/storage/**
+!backend/storage/4.png              # Plantilla madre para carnets
+!backend/storage/plantilla*.png     # Otras plantillas
+# backend/storage/**                # Comentado: para permitir plantilla madre
 
 # Backend - Logs y temporales
 backend/logs/
@@ -51,3 +53,9 @@ build/
 *.exe
 *.zip
 *.tar.gz
+
+# Excepciones para plantillas de carnets:
+!backend/storage/4.png
+!backend/storage/plantilla*.png
+!backend/storage/plantilla*.jpg
+!backend/storage/logo.*
