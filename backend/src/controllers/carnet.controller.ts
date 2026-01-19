@@ -141,3 +141,4 @@ export const verCarnet = async (req: Request, res: Response) => {
     });
   }
 };
+// Último cambio: 2026-01-19 18:22:53
