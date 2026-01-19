@@ -138,7 +138,7 @@ export class CarnetService {
   
   // 🔥 MÉTODO CORREGIDO - AHORA SÍ RETORNA Canvas
   async generarCanvasCarnet(
-    cliente: { nombre: string; apellido: string; fecha_inscripcion?: Date }, 
+    cliente: { nombre: string; apellido: string; fecha_inscripcion?: Date, id?: number }, 
     mes: number, 
     año: number
   ): Promise<Canvas> {
@@ -249,7 +249,7 @@ export class CarnetService {
   
   // 🔥 MÉTODO PARA DESCARGA RÁPIDA (OPCIONAL)
   async generarCarnetBuffer(
-    datosCliente: { nombre: string; apellido: string; fecha_inscripcion: Date }, 
+    datosCliente: { nombre: string; apellido: string; fecha_inscripcion: Date,  id?: number; }, 
     mesNum: number, 
     añoNum: number
   ): Promise<Buffer> {

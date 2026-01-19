@@ -1,21 +1,14 @@
-// controllers/carnet.controller.ts - VERSIÓN COMPLETA
+// controllers/carnet.controller.ts - VERSIÓN CORREGIDA
 import { Request, Response } from 'express';
 import { CarnetService } from '../services/carnet.service';
-import * as fs from 'fs';
-import * as path from 'path';
-import { Pool } from 'pg';
-import { ClienteModel } from '../models/Cliente.model';
+import { createClient } from '@supabase/supabase-js';
 
-// Configuración EXACTA de tu PostgreSQL
-const pool = new Pool({
-  host: 'localhost',
-  port: 5432,
-  database: 'bd_gym',          // ← NOMBRE CORRECTO
-  user: 'postgres',
-  password: 'postgres123'      // ← CONTRASEÑA CORRECTA
-});
+// Configuración SUPABASE (igual que en otros lugares)
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-const clienteModel = new ClienteModel(pool);
 const carnetService = new CarnetService();
 
 export const descargarCarnetPNG = async (req: Request, res: Response) => {
@@ -25,118 +18,109 @@ export const descargarCarnetPNG = async (req: Request, res: Response) => {
     
     console.log(`📥 Descargar carnet para ID: ${id}`);
     
-    // 1. DATOS POR DEFECTO (SIEMPRE DEFINIDOS)
-    let datosCliente = {
-      nombre: 'Cliente',
-      apellido: id.toString(),
-      fecha_inscripcion: new Date()
-    };
-    
-    // 2. INTENTAR OBTENER DE DB
-    try {
-      const usuarioId = parseInt(id);
-      
-      if (!isNaN(usuarioId)) {
-        console.log(`🔍 Buscando cliente ID: ${usuarioId}`);
-        const cliente = await clienteModel.buscarPorId(usuarioId);
-        
-        if (cliente) {
-          console.log(`✅ Cliente REAL: ${cliente.nombre} ${cliente.apellido}`);
-          // REASIGNAR con datos reales
-          datosCliente = {
-            nombre: cliente.nombre,
-            apellido: cliente.apellido,
-            fecha_inscripcion: cliente.fecha_inscripcion || new Date()
-          };
-        }
-      }
-    } catch (dbError: any) {
-      console.error('❌ Error DB:', dbError.message);
-      // Mantiene datos por defecto
+    // 1. VALIDAR QUE NO SEA "undefined"
+    if (!id || id === 'undefined' || id === 'null') {
+      console.error('❌ ID inválido recibido:', id);
+      return res.status(400).send('ID de cliente no válido');
     }
     
-    // 3. Mes y año
+    // 2. CONVERTIR A NÚMERO (usuario_id)
+    const usuarioId = parseInt(id);
+    
+    if (isNaN(usuarioId)) {
+      console.error('❌ ID no es número:', id);
+      return res.status(400).send('ID debe ser un número');
+    }
+    
+    console.log(`🔍 Buscando cliente con usuario_id: ${usuarioId}`);
+    
+    // 3. BUSCAR EN SUPABASE (TABLA 'cliente', campo 'usuario_id')
+    const { data: cliente, error: clienteError } = await supabase
+      .from('cliente')
+      .select('nombre, apellido, fecha_inscripcion')
+      .eq('usuario_id', usuarioId)  // ← ¡BUSCAR POR usuario_id!
+      .single();
+    
+    if (clienteError || !cliente) {
+      console.error('❌ Cliente no encontrado:', {
+        usuario_id: usuarioId,
+        error: clienteError?.message
+      });
+      
+      // ❌ NO usar datos falsos - mejor error claro
+      return res.status(404).json({
+        success: false,
+        message: 'Cliente no encontrado en la base de datos',
+        suggestion: 'Verifica que el cliente esté registrado'
+      });
+    }
+    
+    console.log(`✅ Cliente REAL encontrado: ${cliente.nombre} ${cliente.apellido}`);
+    
+    // 4. BUSCAR ÚLTIMO PAGO para obtener mes/año
+    const { data: ultimoPago } = await supabase
+      .from('pagos')
+      .select('periodo_mes, periodo_ano')
+      .eq('cliente_id', usuarioId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    // 5. DETERMINAR MES/AÑO
     const hoy = new Date();
-    const mesNum = mes ? parseInt(mes as string) : hoy.getMonth() + 1;
-    const añoNum = año ? parseInt(año as string) : hoy.getFullYear();
+    const mesNum = mes ? parseInt(mes as string) : 
+                   ultimoPago?.periodo_mes || hoy.getMonth() + 1;
     
-    // 4. Generar carnet (datosCliente SIEMPRE está definido)
-    console.log(`🎨 Generando para: ${datosCliente.nombre} ${datosCliente.apellido}`);
+    const añoNum = año ? parseInt(año as string) : 
+                   ultimoPago?.periodo_ano || hoy.getFullYear();
     
-    try {
-      const pngBuffer = await carnetService.generarCarnetBuffer(
-        datosCliente, // ← ESTÁ DEFINIDO
-        mesNum,
-        añoNum
-      );
-      
-      const nombreArchivo = `carnet-${datosCliente.nombre}-${datosCliente.apellido}-${mesNum}-${añoNum}.png`;
-      
-      res.setHeader('Content-Type', 'image/png');
-      res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
-      
-      console.log(`✅ Enviando: ${nombreArchivo}`);
-      return res.send(pngBuffer);
-      
-    } catch (error) {
-      // Fallback
-      const resultado = await carnetService.generarCarnetPNG(
-        datosCliente, // ← ESTÁ DEFINIDO
-        mesNum,
-        añoNum
-      );
-      
-      if (fs.existsSync(resultado.path)) {
-        const pngBuffer = fs.readFileSync(resultado.path);
-        res.setHeader('Content-Type', 'image/png');
-        return res.send(pngBuffer);
-      }
-    }
+    console.log(`📅 Periodo: ${mesNum}/${añoNum}`);
+    
+    // 6. GENERAR CARNET CON DATOS REALES
+    console.log(`🎨 Generando para: ${cliente.nombre} ${cliente.apellido}`);
+    
+    const carnetBuffer = await carnetService.generarCarnetBuffer(
+      {
+        nombre: cliente.nombre,
+        apellido: cliente.apellido,
+        fecha_inscripcion: cliente.fecha_inscripcion || new Date(),
+        id: usuarioId  // ← Pasar ID para el servicio si lo necesita
+      },
+      mesNum,
+      añoNum
+    );
+    
+    // 7. ENVIAR RESPUESTA
+    const nombreArchivo = `carnet-${cliente.nombre}-${cliente.apellido}-${mesNum}-${añoNum}.png`;
+    
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `inline; filename="${nombreArchivo}"`);
+    
+    console.log(`✅ Enviando carnet: ${nombreArchivo}`);
+    return res.send(carnetBuffer);
     
   } catch (error: any) {
-    console.error('Error:', error);
+    console.error('💥 Error crítico en descargarCarnetPNG:', error);
+    
+    // Error detallado pero seguro
     res.status(500).json({
       success: false,
-      message: 'Error generando carnet'
+      message: 'Error generando carnet',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      suggestion: 'Contacta al administrador del sistema'
     });
   }
 };
 
-// Las funciones verCarnet y healthCheck quedan IGUAL a tu versión anterior
-export const verCarnet = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    
-    const datosCliente = {
-      nombre: 'Cliente',
-      apellido: id.toString(),
-      fecha_inscripcion: new Date()
-    };
-    
-    const resultado = await carnetService.generarCarnetPNG(
-      datosCliente,
-      1,
-      2024
-    );
-    
-    if (fs.existsSync(resultado.path)) {
-      const pngBuffer = fs.readFileSync(resultado.path);
-      res.setHeader('Content-Type', 'image/png');
-      return res.send(pngBuffer);
-    } else {
-      res.status(404).send('No encontrado');
-    }
-    
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).send('Error');
-  }
-};
-
+// Opcional: mantener las otras funciones si las necesitas
 export const healthCheck = (req: Request, res: Response) => {
   res.json({
     success: true,
     message: 'Servicio de carnets funcionando',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    config: {
+      supabase: !!process.env.SUPABASE_URL,
+      carnetService: true
+    }
   });
 };

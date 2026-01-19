@@ -2,6 +2,7 @@
 
 // Interface principal (para recibir datos del backend)
 export interface Cliente {
+  
   email: any;
   usuario_id: number;
   nombre: string;
