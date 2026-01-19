@@ -196,23 +196,49 @@ export const listarClientes = async (req: Request, res: Response) => {
   console.log('🎯 /api/clientes - MODO SEGURO ACTIVADO');
   
   try {
-    // 1. Query DIRECTA y SIMPLE - sin usar ClienteModel
+    // 1. Query DIRECTA y SIMPLE - SIN LIMIT
     console.log('🔍 Ejecutando query directa...');
-    const query = 'SELECT * FROM cliente ORDER BY usuario_id LIMIT 50';
+    const query = `
+      SELECT 
+        c.id,                    -- ← ID de la tabla cliente
+        c.usuario_id,            -- ← RELACIÓN con usuario
+        c.nombre,
+        c.apellido,
+        c.telefono,
+        c.email,                 -- ← SI EXISTE
+        c.direccion,             -- ← SI EXISTE
+        c.estado_cuota,
+        c.fecha_inscripcion,
+        c.fecha_vencimiento,
+        c.created_at,
+        c.updated_at,
+        u.username,              -- ← DATOS DEL USUARIO
+        u.email as usuario_email
+      FROM cliente c
+      JOIN usuario u ON c.usuario_id = u.id
+      WHERE u.activo = true
+      ORDER BY c.fecha_inscripcion DESC
+    `;
     
     const result = await pool.query(query);
     
     console.log(`✅ ${result.rows.length} clientes encontrados`);
     
-    // 2. Formatear respuesta
+    // 2. Formatear respuesta CORRECTAMENTE
     const clientesFormateados = result.rows.map(cliente => ({
-      id: cliente.usuario_id,
-      nombre: cliente.nombre,
-      apellido: cliente.apellido,
-      telefono: cliente.telefono,
-      estado_cuota: cliente.estado_cuota,
+      id: cliente.id || cliente.usuario_id,  // ← Mantener ambos
+      usuario_id: cliente.usuario_id,        // ← ¡INCLUIR usuario_id!
+      nombre: cliente.nombre?.trim() || '',
+      apellido: cliente.apellido?.trim() || '',
+      telefono: cliente.telefono?.trim() || '',
+      email: cliente.email || cliente.usuario_email || '',
+      direccion: cliente.direccion || '',
+      estado_cuota: cliente.estado_cuota || 'inactivo',
       fecha_inscripcion: cliente.fecha_inscripcion,
-      fecha_vencimiento: cliente.fecha_vencimiento
+      fecha_vencimiento: cliente.fecha_vencimiento,
+      created_at: cliente.created_at,
+      updated_at: cliente.updated_at,
+      username: cliente.username || ''
     }));
     
     res.json({
@@ -220,36 +246,49 @@ export const listarClientes = async (req: Request, res: Response) => {
       count: result.rows.length,
       data: clientesFormateados,
       _debug: {
-        method: 'query_directa',
-        query: query,
-        raw_count: result.rowCount
+        method: 'query_completa',
+        raw_count: result.rowCount,
+        timestamp: new Date().toISOString()
       }
     });
     
   } catch (error: any) {
-    console.error('🔥 ERROR en listarClientes (modo seguro):');
-    console.error('🔴 Código:', error.code);
-    console.error('🔴 Mensaje:', error.message);
+    console.error('🔥 ERROR en listarClientes:', error.message);
     
-    // Si es error de tabla no existe
-    if (error.code === '42P01') {
-      return res.status(500).json({
-        success: false,
-        message: 'La tabla "cliente" no existe en la base de datos',
-        solution: '1. Ve a Supabase → SQL Editor\n2. Ejecuta: CREATE TABLE cliente (...)\n3. O usa: CREATE TABLE IF NOT EXISTS cliente (...)'
-      });
+    // Si la tabla no existe o tiene problemas
+    if (error.code === '42P01' || error.message.includes('no existe')) {
+      console.log('⚠️ Tabla cliente no existe, intentando query simple...');
+      
+      // Query alternativa más simple
+      try {
+        const simpleQuery = 'SELECT * FROM cliente ORDER BY id';
+        const simpleResult = await pool.query(simpleQuery);
+        
+        const clientesSimples = simpleResult.rows.map(cliente => ({
+          id: cliente.id,
+          usuario_id: cliente.usuario_id || null,
+          nombre: cliente.nombre?.trim() || '',
+          apellido: cliente.apellido?.trim() || '',
+          telefono: cliente.telefono?.trim() || '',
+          estado_cuota: cliente.estado_cuota || 'inactivo',
+          fecha_inscripcion: cliente.fecha_inscripcion,
+          fecha_vencimiento: cliente.fecha_vencimiento
+        }));
+        
+        return res.json({
+          success: true,
+          count: clientesSimples.length,
+          data: clientesSimples,
+          _debug: {
+            method: 'query_simple_fallback',
+            warning: 'Tabla cliente sin join a usuario'
+          }
+        });
+      } catch (simpleError: any) {
+        console.error('Error en query simple:', simpleError);
+      }
     }
     
-    // Si es error de conexión
-    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
-      return res.status(500).json({
-        success: false,
-        message: 'No se puede conectar a la base de datos',
-        error: 'Verifica DATABASE_URL en Render'
-      });
-    }
-    
-    // Error genérico
     res.status(500).json({
       success: false,
       message: 'Error en base de datos',
