@@ -1,4 +1,4 @@
-// src/controllers/cliente.controller.ts
+// src/controllers/cliente.controller.ts - VERSIÓN CORREGIDA
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import pool from '../config/database';
@@ -108,10 +108,11 @@ export const registrarCliente = async (req: Request, res: Response) => {
     
     const pagoId = pagoResult.rows[0].id;
 
-    // 4. Generar carnet
+    // 4. Generar carnet (CON ID FIJADO)
     const carnetService = new CarnetService();
     const carnetPNG = await carnetService.generarCarnetPNG(
       {
+        id: usuarioCreado.id,  // ← ¡ESTO ES IMPORTANTE!
         nombre: clienteData.nombre,
         apellido: clienteData.apellido,
         fecha_inscripcion: new Date() 
@@ -417,7 +418,7 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
     // FECHAS - 1 MES EXACTO DESDE INSCRIPCIÓN
     // ============================================
     const fechaVencimiento = new Date(hoy);
-   fechaVencimiento.setDate(fechaVencimiento.getDate() + 31); // ← 30 DÍAS EXACTOS
+    fechaVencimiento.setDate(fechaVencimiento.getDate() + 31); // ← 30 DÍAS EXACTOS
 
     console.log('📅 FECHAS CLIENTE RÁPIDO:');
     console.log('  Inscripción:', hoy.toLocaleDateString());
@@ -468,11 +469,12 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
     const pagoId = pagoResult.rows[0].id;
 
     // ============================================
-    // 4. GENERAR CARNET
+    // 4. GENERAR CARNET (CON ID FIJADO)
     // ============================================
     const carnetService = new CarnetService();
     const carnetPNG = await carnetService.generarCarnetPNG(
       {
+        id: usuarioCreado.id,  // ← ¡ESTO ES IMPORTANTE!
         nombre: nombre,
         apellido: apellido,
         fecha_inscripcion: hoy
@@ -502,7 +504,7 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
     const carnetId = carnetResult.rows[0].id;
 
     // ============================================
-    // 6. ENVIAR WHATSAPP
+    // 6. ENVIAR WHATSAPP (VERSIÓN CORREGIDA)
     // ============================================
     console.log('📱 Enviando carnet por WhatsApp a:', celular);
 
@@ -513,16 +515,37 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
 
     try {
       const twilioService = new TwilioService();
-      let urlCarnetLimpia = carnetPNG.url.trim();
-      if (!urlCarnetLimpia.startsWith('/')) {
-        urlCarnetLimpia = '/' + urlCarnetLimpia;
+      
+      // 🔥 CORRECCIÓN: URL PERMANENTE, SIN NGROK
+      if (carnetPNG.url && carnetPNG.url.trim() !== '') {
+        const urlCarnetLimpia = carnetPNG.url.trim();
+        
+        // Si ya es URL completa (http/https)
+        if (urlCarnetLimpia.startsWith('http')) {
+          urlCompletaCarnet = urlCarnetLimpia;
+        }
+        // Si es ruta relativa (/uploads/...)
+        else if (urlCarnetLimpia.startsWith('/')) {
+          urlCompletaCarnet = `https://gym-app-n77p.onrender.com${urlCarnetLimpia}`;
+        }
+        // Si es otra cosa
+        else {
+          urlCompletaCarnet = `https://gym-app-n77p.onrender.com/api/carnets/descargar/${carnetId}`;
+        }
+      } else {
+        // Fallback seguro
+        urlCompletaCarnet = `https://gym-app-n77p.onrender.com/api/carnets/descargar/${carnetId}`;
       }
-      urlCompletaCarnet = `https://woodrow-opprobrious-hypercarnally.ngrok-free.dev${urlCarnetLimpia}`;
       
       console.log('🔗 URL para WhatsApp:', urlCompletaCarnet);
       
       const resultado = await twilioService.enviarCarnetBienvenida(
-        { id: usuarioCreado.id, nombre, apellido, telefono: celular },
+        { 
+          id: usuarioCreado.id, 
+          nombre, 
+          apellido, 
+          telefono: celular 
+        },
         urlCompletaCarnet
       );
       
@@ -558,9 +581,9 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
         nombre,
         apellido,
         celular,
-         estado_cuota: 'activo',
-    fecha_vencimiento: fechaVencimiento.toISOString().split('T')[0],
-    fecha_inscripcion: hoy.toISOString().split('T')[0],
+        estado_cuota: 'activo',
+        fecha_vencimiento: fechaVencimiento.toISOString().split('T')[0],
+        fecha_inscripcion: hoy.toISOString().split('T')[0],
         pago: {
           id: pagoId,
           monto,
@@ -569,16 +592,13 @@ export const registrarClienteRapido = async (req: Request, res: Response) => {
           mes_nombre: mesNombre,
           ano: añoActual,
           metodo
-         
         },
-        
         carnet: {
           id: carnetId,
           url: carnetPNG.url,
           direct_url: urlCompletaCarnet,
           download_url: `/api/carnets/descargar/${carnetId}`
         },
-        
         whatsapp: {
           enviado: whatsappEnviado,
           sid: whatsappSid,
