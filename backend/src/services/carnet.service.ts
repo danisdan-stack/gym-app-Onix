@@ -40,102 +40,104 @@ export class CarnetService {
   }
   
   // 🔥 MÉTODO PRINCIPAL - CON FALLBACK
-  async generarCarnetPNG(
-    cliente: { 
-      nombre: string; 
-      apellido: string; 
-      fecha_inscripcion?: Date;
-      id?: number;
-    },
-    mes: number,
-    año: number
-  ): Promise<{ url: string; path: string }> {
-    
-    console.log(`🏋️  Generando carnet para ${cliente.nombre} ${cliente.apellido} - ${mes}/${año}`);
-    
-    try {
-      // 1. GENERAR LA IMAGEN
-      const canvas = await this.generarCanvasCarnet(cliente, mes, año);
-      const buffer = canvas.toBuffer('image/png');
-      
-      // 2. NOMBRE DEL ARCHIVO
-      const clienteId = cliente.id || Date.now();
-      const filename = `carnet-${clienteId}-${año}-${mes}.png`;
-      
-      let publicUrl = '';
-      let filePath = filename;
-      
-      // 3. INTENTAR SUBIR A SUPABASE
-      if (this.supabase) {
-        try {
-          console.log('☁️  Subiendo a Supabase Storage...');
-          
-          const { error: uploadError } = await this.supabase.storage
-            .from('carnets')
-            .upload(filename, buffer, {
-              contentType: 'image/png',
-              upsert: true
-            });
-          
-          if (!uploadError) {
-            // Obtener URL pública
-            const { data: { publicUrl: url } } = this.supabase.storage
-              .from('carnets')
-              .getPublicUrl(filename);
-            
-            publicUrl = url;
-            console.log('✅ Carnet subido a Supabase:', publicUrl);
-          } else {
-            console.warn('⚠️  Error Supabase:', uploadError.message);
-          }
-        } catch (supabaseError) {
-          console.warn('⚠️  Error con Supabase:', supabaseError.message);
-        }
-      }
-      
-      // 4. SIEMPRE GUARDAR LOCALMENTE COMO FALLBACK
-      try {
-        const uploadsDir = path.join(__dirname, '../../public/uploads');
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-        
-        const localPath = path.join(uploadsDir, filename);
-        await fs.promises.writeFile(localPath, buffer);
-        
-        console.log('💾 Carnet guardado localmente:', localPath);
-        
-        // Si no tenemos URL de Supabase, usar la local
-        if (!publicUrl) {
-          publicUrl = `/uploads/${filename}`;
-        }
-        
-      } catch (localError) {
-        console.error('❌ Error guardando localmente:', localError.message);
-      }
-      
-      // 5. SI TODO FALLA, RETORNAR URL DE PLACEHOLDER
-      if (!publicUrl) {
-        publicUrl = 'https://via.placeholder.com/800x600.png?text=Carnet+Generado';
-        console.log('⚠️  Usando URL de placeholder');
-      }
-      
-      return {
-        url: publicUrl,
-        path: filePath
-      };
-      
-    } catch (error) {
-      console.error('💥 Error generando carnet:', error);
-      
-      // NUNCA LANZAR ERROR - Siempre retornar algo
-      return {
-        url: 'https://via.placeholder.com/800x600.png?text=Error+Generando+Carnet',
-        path: 'error.png'
+ async generarCarnetPNG(
+  cliente: { 
+    nombre: string; 
+    apellido: string; 
+    fecha_inscripcion?: Date;
+    id?: number;
+  },
+  mes: number,
+  año: number
+): Promise<{ 
+  url: string; 
+  path: string; 
+  success: boolean;
+  error?: string;
+}> {
+  
+  console.log(`🏋️  Generando carnet para ${cliente.nombre} ${cliente.apellido}`);
+  
+  try {
+    // 1. VERIFICAR QUE TENEMOS SUPABASE
+    if (!this.supabase) {
+      return { 
+        url: '', 
+        path: '', 
+        success: false, 
+        error: 'Supabase no inicializado' 
       };
     }
+    
+    if (!cliente.id) {
+      return { 
+        url: '', 
+        path: '', 
+        success: false, 
+        error: 'Cliente sin ID' 
+      };
+    }
+    
+    // 2. GENERAR IMAGEN
+    const canvas = await this.generarCanvasCarnet(cliente, mes, año);
+    const buffer = canvas.toBuffer('image/png');
+    
+    // 3. NOMBRE DEL ARCHIVO
+    const filename = `carnet-${cliente.id}-${año}-${mes}.png`;
+    
+    // 4. SUBIR A SUPABASE
+    console.log(`📤 Subiendo ${filename} a Supabase...`);
+    
+    const { data: uploadData, error: uploadError } = await this.supabase.storage
+      .from('carnets')
+      .upload(filename, buffer, {
+        contentType: 'image/png',
+        upsert: true
+      });
+    
+    if (uploadError) {
+      console.error('❌ ERROR SUPABASE UPLOAD:', {
+        message: uploadError.message,
+        code: uploadError.code,
+        details: uploadError.details
+      });
+      
+      return { 
+        url: '', 
+        path: filename, 
+        success: false, 
+        error: `Supabase: ${uploadError.message}` 
+      };
+    }
+    
+    console.log('✅ Upload exitoso:', uploadData);
+    
+    // 5. OBTENER URL PÚBLICA
+    const { data: { publicUrl } } = this.supabase.storage
+      .from('carnets')
+      .getPublicUrl(filename);
+    
+    console.log('🔗 URL pública:', publicUrl);
+    
+    return {
+      url: publicUrl,
+      path: filename,
+      success: true
+    };
+    
+  } catch (error: any) {
+    console.error('💥 ERROR GENERAL:', error);
+    
+    return { 
+      url: '', 
+      path: '', 
+      success: false, 
+      error: error.message 
+    };
   }
   
+}
+
   // 🔥 MÉTODO CORREGIDO - AHORA SÍ RETORNA Canvas
   async generarCanvasCarnet(
     cliente: { nombre: string; apellido: string; fecha_inscripcion?: Date, id?: number }, 
