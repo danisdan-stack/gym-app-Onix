@@ -35,40 +35,20 @@ export class ClienteController {
   }
 
   async listarClientesSimplificado(req: Request, res: Response) {
-    try {
-      const result = await pool.query(`
-        SELECT id, nombre, apellido, estado_cuota
-        FROM cliente
-        ORDER BY apellido
-      `);
+  try {
+    const result = await pool.query(`
+      SELECT 
+        usuario_id,
+        nombre,
+        apellido,
+        estado_cuota
+      FROM cliente
+      ORDER BY apellido
+    `);
 
-      res.json({ success: true, data: result.rows });
+    res.json({ success: true, data: result.rows });
 
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Error listando clientes'
-      });
-    }
-  }
-
-  async listarClientesConCarnet(req: Request, res: Response) {
-    try {
-      const result = await pool.query(`
-        SELECT 
-          c.id,
-          c.nombre,
-          c.apellido,
-          c.estado_cuota,
-          ca.carnet_url
-        FROM cliente c
-        LEFT JOIN carnets ca ON ca.cliente_id = c.id
-        ORDER BY c.apellido
-      `);
-
-      res.json({ success: true, data: result.rows });
-
-    } catch (error: any) {
+  } catch (error: any) {
     console.error('ERROR listarClientesSimplificado:', error);
 
     res.status(500).json({
@@ -76,5 +56,33 @@ export class ClienteController {
       error: error.message
     });
   }
+}
+
+
+ async listarClientesConCarnet(req: Request, res: Response) {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        c.usuario_id,
+        c.nombre,
+        c.apellido,
+        c.estado_cuota,
+        ca.carnet_url
+      FROM cliente c
+      LEFT JOIN carnets ca ON ca.cliente_id = c.usuario_id
+      ORDER BY c.apellido
+    `);
+
+    res.json({ success: true, data: result.rows });
+
+  } catch (error: any) {
+    console.error('ERROR listarClientesConCarnet:', error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
+}
+
 }
