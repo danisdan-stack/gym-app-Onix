@@ -1,5 +1,5 @@
 // src/models/Pago.model.ts
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { IPago, IPagoCreate } from './interfaces/pago.interface';
 
 export class PagoModel {
@@ -15,7 +15,7 @@ export class PagoModel {
   constructor(private pool: Pool) {}
 
   // En models/pago.model.ts
-async registrar(pagoData: IPagoCreate): Promise<any> {
+async registrar(pagoData: IPagoCreate, client: PoolClient): Promise<any> {
   const query = `
     INSERT INTO pagos (
       cliente_id, monto, metodo, estado,
@@ -41,7 +41,7 @@ async registrar(pagoData: IPagoCreate): Promise<any> {
   const result = await this.pool.query(query, values);
   return result.rows[0];
 }
-  async obtenerPorCliente(clienteId: number): Promise<IPago[]> {
+  async obtenerPorCliente(clienteId: number, p0: number, p1: number, client: PoolClient): Promise<IPago[]> {
     const query = `
       SELECT * FROM pagos 
       WHERE cliente_id = $1 

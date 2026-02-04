@@ -4,83 +4,74 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 console.log('=========================================');
-console.log('🏋️‍♂️ ONIX GYM - Inicializando BD');
+console.log('🏋️‍♂️ ONIX GYM - Conexión FINAL');
 console.log('=========================================');
 
-// CONFIGURACIÓN CON SESSION POOLER
 const poolConfig = {
-  connectionString: process.env.DATABASE_URL,
+  host: 'aws-0-us-west-2.pooler.supabase.com',
+  port: 6543,
+  database: 'postgres',
+  user: 'postgres.shkzfvmxawargmdssrsr',
+  password: 'OnixGym2024Secure',
   ssl: {
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    requestCert: true,
+    agent: false
   },
-  max: 10,
-  connectionTimeoutMillis: 30000,
-  idleTimeoutMillis: 30000
+  max: 2, // ← ¡IMPORTANTE! Solo 2 conexiones
+  connectionTimeoutMillis: 15000, // 15 segundos máximo
+  query_timeout: 10000 // Timeout para queries
 };
 
-console.log('🔧 Usando Session Pooler de Supabase');
-console.log('📍 Región: us-west-2');
-console.log('🔐 SSL: Habilitado');
+console.log('🔧 Conexión directa al puerto 6543');
+console.log(`   ${poolConfig.user}@${poolConfig.host}:${poolConfig.port}`);
 
 const pool = new Pool(poolConfig);
 
-// TEST DE CONEXIÓN
+// Manejo de errores mejorado
+pool.on('error', (err) => {
+  console.error('💥 Error en pool:', err.message);
+});
+
+// Test DIRECTO
 const testConnection = async () => {
-  console.log('\n🔌 Probando conexión...');
+  console.log('\n🔌 Autenticando...');
   
+  let client;
   try {
-    const client = await pool.connect();
-    console.log('✅ CONEXIÓN EXITOSA!');
+    // Conectar con timeout
+    client = await pool.connect();
+    console.log('✅ ¡AUTENTICACIÓN EXITOSA!');
     
-    // Información de la conexión
-    const info = await client.query(`
-      SELECT 
-        NOW() as hora,
-        current_database() as bd,
-        current_user as usuario,
-        inet_server_addr() as ip_servidor
-    `);
+    // Query ULTRA rápida
+    const start = Date.now();
+    const result = await client.query({
+      text: 'SELECT NOW() as hora',
+      timeout: 3000 // Solo 3 segundos
+    });
+    const elapsed = Date.now() - start;
     
-    console.log('\n📊 INFORMACIÓN DE CONEXIÓN:');
-    console.log(`   ⏰ Hora servidor: ${info.rows[0].hora}`);
-    console.log(`   🗄️  Base de datos: ${info.rows[0].bd}`);
-    console.log(`   👤 Usuario: ${info.rows[0].usuario}`);
-    console.log(`   🌐 IP servidor: ${info.rows[0].ip_servidor}`);
-    
-    // Verificar tablas
-    const tables = await client.query(`
-      SELECT COUNT(*) as total 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-    `);
-    
-    console.log(`   📋 Tablas públicas: ${tables.rows[0].total}`);
+    console.log(`🕐 Hora servidor: ${result.rows[0].hora}`);
+    console.log(`⚡ Tiempo respuesta: ${elapsed}ms`);
     
     client.release();
     
-    console.log('\n🎉 SISTEMA LISTO PARA OPERAR!');
+    console.log('\n🎉 ¡ONIX GYM CONECTADO!');
     console.log('=========================================\n');
     
-  } catch (error) {
-    console.error('\n💥 ERROR DE CONEXIÓN:');
-    console.error(`   ${error.message}`);
+  } catch (error: any) {
+    console.error('\n💥 Error en autenticación:', error.message);
     
-    console.error('\n🔍 DIAGNÓSTICO:');
-    
-    if (error.message.includes('password authentication')) {
-      console.error('   ❌ Error de autenticación');
-      console.error('   💡 Verifica la contraseña en DATABASE_URL');
-    } else if (error.message.includes('timeout')) {
-      console.error('   ❌ Timeout de conexión');
-      console.error('   💡 La URL puede ser incorrecta');
+    if (error.message.includes('timeout')) {
+      console.error('\n🔍 El Session Pooler acepta conexión pero no autentica');
+      console.error('💡 Causa: Plan Free saturado en autenticación');
     }
     
-    console.error('\n📝 TU CONFIGURACIÓN DEBE SER:');
-    console.error('   DATABASE_URL=postgresql://postgres.shkzfvmxawargmdssrsr:CONTRASEÑA@aws-0-us-west-2.pooler.supabase.com:5432/postgres');
+    if (client) client.release();
   }
 };
 
-// Ejecutar test
-setTimeout(testConnection, 1500);
+// Esperar 3 segundos y testear
+setTimeout(testConnection, 3000);
 
 export default pool;

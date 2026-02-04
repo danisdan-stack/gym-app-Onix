@@ -8,5 +8,5 @@ router.get('/estadisticas', DashboardController.getStats);
 router.get('/clientes-recientes', DashboardController.getRecentClients);
 router.get('/pagos-pendientes', DashboardController.getPendingPayments);
 router.get('/resumen', DashboardController.getFullDashboard);
-
+router.get('/ingresos', DashboardController.getIngresosMensuales);
 export default router;

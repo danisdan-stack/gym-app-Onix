@@ -1,0 +1,13 @@
+{
+  "proxy": {
+    "/api": {
+      "target": "https://gym-app-n77p.onrender.com",
+      "secure": false,
+      "changeOrigin": true,
+      "logLevel": "debug", 
+      "pathRewrite": {
+        "^/api": "/api"
+      }
+    }
+  }
+}
