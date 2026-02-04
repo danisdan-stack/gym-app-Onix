@@ -1,9 +1,13 @@
+import dotenv from 'dotenv';
+dotenv.config(); // Esto carga las variables de .env
+
 import { createCanvas, loadImage, registerFont, Canvas, 
   CanvasRenderingContext2D } from 'canvas';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PoolClient } from 'pg';
+
 
 /* ======================================================
    REGISTRO DE FUENTE

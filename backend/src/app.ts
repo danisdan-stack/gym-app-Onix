@@ -42,10 +42,16 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+
+
 /* ======================
    STATIC FILES
 ====================== */
 app.use('/storage', express.static(path.join(__dirname, '../storage')));
+
+app.get('/test', (req, res) => {
+  res.json({ ok: true });
+});
 
 /* ======================
    ROUTES

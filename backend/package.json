@@ -1,8 +1,8 @@
 {
+  
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "main": "dist/app.js",
   "scripts": {
     "dev": "nodemon src/app.ts",
     "build": "tsc",
@@ -10,6 +10,7 @@
     "clean": "rm -rf dist",
     "rebuild": "npm run clean && npm run build"
   },
+
   "keywords": [],
   "author": "",
   "license": "ISC",
