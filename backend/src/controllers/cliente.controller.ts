@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
-import pool from '../config/database';
+import pool  from '../config/database';
 import { ClienteAltaService } from '../services/clienteAlta.service';
+
 
 export class ClienteController {
   private altaService = new ClienteAltaService();

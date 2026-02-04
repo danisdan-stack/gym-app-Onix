@@ -3,6 +3,7 @@ import { IPagoCreate, IPago } from '../models/interfaces/pago.interface';
 import { PagoModel } from '../models/pago.model';
 import { ClienteAltaService } from './clienteAlta.service';
 import { CarnetService } from './carnet.service';
+import pool from '../config/database';
 
 export class PagoService {
   constructor(
