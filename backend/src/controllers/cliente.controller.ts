@@ -26,66 +26,52 @@ export class ClienteController {
 
     } catch (error: any) {
       await client.query('ROLLBACK');
-
-      return res.status(400).json({
-        ok: false,
-        error: error.message
-      });
+      return res.status(400).json({ ok: false, error: error.message });
 
     } finally {
       client.release();
     }
   }
+
+  async listarClientesSimplificado(req: Request, res: Response) {
+    try {
+      const result = await pool.query(`
+        SELECT id, nombre, apellido, estado_cuota
+        FROM cliente
+        ORDER BY apellido
+      `);
+
+      res.json({ success: true, data: result.rows });
+
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Error listando clientes'
+      });
+    }
+  }
+
+  async listarClientesConCarnet(req: Request, res: Response) {
+    try {
+      const result = await pool.query(`
+        SELECT 
+          c.id,
+          c.nombre,
+          c.apellido,
+          c.estado_cuota,
+          ca.carnet_url
+        FROM cliente c
+        LEFT JOIN carnets ca ON ca.cliente_id = c.id
+        ORDER BY c.apellido
+      `);
+
+      res.json({ success: true, data: result.rows });
+
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Error listando clientes con carnet'
+      });
+    }
+  }
 }
-
-export const listarClientesConCarnet = async (req: Request, res: Response) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        c.id,
-        c.nombre,
-        c.apellido,
-        c.estado_cuota,
-        ca.url as carnet_url
-      FROM cliente c
-      LEFT JOIN carnets ca ON ca.cliente_id = c.id
-      ORDER BY c.apellido
-    `);
-
-    res.json({
-      success: true,
-      data: result.rows
-    });
-
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: 'Error listando clientes con carnet'
-    });
-  }
-};
-
-export const listarClientesSimplificado = async (req: Request, res: Response) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        id,
-        nombre,
-        apellido,
-        estado_cuota
-      FROM cliente
-      ORDER BY apellido
-    `);
-
-    res.json({
-      success: true,
-      data: result.rows
-    });
-
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: 'Error listando clientes'
-    });
-  }
-};
