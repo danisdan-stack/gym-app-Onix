@@ -63,36 +63,42 @@ export class CarnetService {
   /* ======================================================
      MÉTODO PRINCIPAL (YA TIPADO)
   ====================================================== */
-async generarCarnetPNG(data: CarnetData): Promise<{ url: string; path: string }> {
-    this.validarDatos(data);
+async generarCarnetPNG(
+  data: CarnetData
+): Promise<{ url: string; path: string }> {
 
-    const canvas = await this.generarCanvas(data);
-    const buffer = canvas.toBuffer('image/png');
+  this.validarDatos(data);
 
-    const filename = this.generarNombreArchivo(data);
+  const canvas = await this.generarCanvas(data);
+  const buffer = canvas.toBuffer('image/png');
 
-    console.log('📤 Subiendo carnet:', filename);
+  // 📁 ruta profesional dentro del bucket
+  const filePath = `clientes/${data.clienteId}/${data.año}/carnet_${data.año}_${data.mes}.png`;
 
-    const { error } = await this.supabase.storage
-      .from(this.bucket)
-      .upload(filename, buffer, {
-        contentType: 'image/png',
-        upsert: true
-      });
+  console.log('📤 Subiendo carnet a Supabase:', filePath);
 
-    if (error) {
-      throw new Error(`Supabase upload error: ${error.message}`);
-    }
+  const { error } = await this.supabase.storage
+    .from(this.bucket)
+    .upload(filePath, buffer, {
+      contentType: 'image/png',
+      upsert: true
+    });
 
-    const { data: publicData } = this.supabase.storage
-  .from(this.bucket)
-  .getPublicUrl(filename);
-
-return {
-  url: publicData.publicUrl,
-  path: filename
-};
+  if (error) {
+    console.error('❌ Error subiendo a Supabase:', error);
+    throw new Error(error.message);
   }
+
+  const { data: publicData } = this.supabase.storage
+    .from(this.bucket)
+    .getPublicUrl(filePath);
+
+  return {
+    url: publicData.publicUrl,
+    path: filePath
+  };
+}
+
 
   async generarSiCorresponde(
   cliente_id: number,
@@ -139,11 +145,16 @@ return {
     año: pago.periodo_ano
   };
 
-  // 4️⃣ Generar carnet PNG
   const carnet = await this.generarCarnetPNG(carnetData);
 
-  // 5️⃣ Devolver carnet generado
-  return carnet;
+await client.query(
+  `UPDATE clientes
+   SET carnet_url = $1
+   WHERE id = $2`,
+  [carnet.url, cliente_id]
+);
+
+return carnet;
 }
 
 
