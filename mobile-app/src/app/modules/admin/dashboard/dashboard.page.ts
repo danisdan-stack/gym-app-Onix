@@ -2,7 +2,7 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-
+import { environment } from 'src/environments/environment';
 
 
 import {
@@ -53,6 +53,7 @@ import { AlertController, ToastController } from '@ionic/angular';
   ]
 })
 export class DashboardPage implements OnInit {
+  private apiUrl = environment.apiUrl;
 
   // =========================
   // Datos del dashboard
@@ -80,7 +81,7 @@ export class DashboardPage implements OnInit {
     monto: 0
   };
 
-  private apiUrl = 'api';
+ 
   whatsappService: any;
 
   constructor(
@@ -117,39 +118,51 @@ export class DashboardPage implements OnInit {
   // Crear cliente + primer pago
   // =========================
   async crearCliente() {
-    const { nombre, apellido, telefono, monto } = this.nuevoCliente;
+  const { nombre, apellido, telefono, monto } = this.nuevoCliente;
 
-    if (!nombre || !apellido || !telefono || !monto) {
-      await this.mostrarAlerta('Error', 'Debe completar todos los campos');
-      return;
-    }
-
-    const payload = {
-      usuario: {
-        username: `${nombre}${apellido}`.toLowerCase(),
-        email: `${telefono}@noemail.com`,
-        password: '1234'
-      },
-      cliente: { nombre, apellido, telefono },
-      pago: { monto }
-    };
-
-    this.http.post(`${this.apiUrl}/clientes/alta`, payload)
-      .subscribe({
-        next: async () => {
-          await this.mostrarToast('Cliente creado y pago registrado', 'success');
-          this.nuevoCliente = { nombre: '', apellido: '', telefono: '', monto: 0 };
-          this.cargarClientes();
-          this.cargarIngresos();
-        },
-        error: async err => {
-          await this.mostrarAlerta(
-            'Error',
-            err.error?.message || 'No se pudo crear cliente'
-          );
-        }
-      });
+  if (!nombre || !apellido || !telefono || !monto) {
+    await this.mostrarAlerta('Error', 'Debe completar todos los campos');
+    return;
   }
+
+  const ahora = new Date();
+
+  const payload = {
+    usuario: {
+      username: `${nombre}${apellido}`.toLowerCase(),
+      email: `${telefono}@noemail.com`,
+      password: '1234'
+    },
+    cliente: {
+      nombre,
+      apellido,
+      telefono
+    },
+    pago: {
+      monto,
+      mes: ahora.getMonth() + 1,
+      ano: ahora.getFullYear(),
+      metodo: 'efectivo'
+    }
+  };
+
+  this.http.post(`${this.apiUrl}/clientes/alta`, payload)
+    .subscribe({
+      next: async () => {
+        await this.mostrarToast('Cliente creado y carnet generado', 'success');
+        this.nuevoCliente = { nombre: '', apellido: '', telefono: '', monto: 0 };
+        this.cargarClientes();
+        this.cargarIngresos();
+      },
+      error: async err => {
+        await this.mostrarAlerta(
+          'Error',
+          err.error?.error || err.error?.message || 'No se pudo crear cliente'
+        );
+      }
+    });
+}
+
 
   // =========================
   // Registrar pago

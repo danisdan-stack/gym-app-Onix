@@ -20,92 +20,86 @@ export class ClienteAltaService {
    * Alta completa de cliente (usuario + cliente + pago + carnet)
    */
   async registrarAltaCompleta(
-    payload: IClienteRegistroRequest,
-    client: PoolClient
-  ) {
-    const { usuario, cliente, pago } = payload;
+  payload: IClienteRegistroRequest,
+  client: PoolClient
+) {
+  const { usuario, cliente, pago } = payload;
 
-    // =========================
-    // 1. VALIDACIONES DE NEGOCIO
-    // =========================
-    if (!usuario?.username || !usuario?.email || !usuario?.password) {
-      throw new Error('Datos de usuario incompletos');
-    }
-    if (!cliente?.nombre || !cliente?.apellido) {
-      throw new Error('Nombre y apellido son obligatorios');
-    }
-    if (!pago?.monto || !pago?.mes || !pago?.ano) {
-      throw new Error('Pago inicial incompleto');
-    }
-    if (pago.mes < 1 || pago.mes > 12) {
-      throw new Error('Mes inválido');
-    }
+  // =========================
+  // 1. VALIDACIONES
+  // =========================
+  if (!usuario?.username || !usuario?.email || !usuario?.password) {
+    throw new Error('Datos de usuario incompletos');
+  }
+  if (!cliente?.nombre || !cliente?.apellido) {
+    throw new Error('Nombre y apellido son obligatorios');
+  }
+  if (!pago?.monto || !pago?.mes || !pago?.ano) {
+    throw new Error('Pago inicial incompleto');
+  }
+  if (pago.mes < 1 || pago.mes > 12) {
+    throw new Error('Mes inválido');
+  }
 
-    // =========================
-    // 2. VERIFICAR PERÍODO DUPLICADO
-    // =========================
-    const existePago = await client.query(
-      `
-      SELECT 1 
-      FROM pagos 
-      WHERE cliente_id = (
-        SELECT id FROM usuario WHERE email = $1
-      )
+  // =========================
+  // 2. CREAR USUARIO
+  // =========================
+  const passwordHash = await bcrypt.hash(usuario.password, 10);
+
+  const usuarioResult = await client.query(
+    `
+    INSERT INTO usuario (username, email, password_hash, rol, activo)
+    VALUES ($1, $2, $3, 'cliente', true)
+    RETURNING id, username, email
+    `,
+    [usuario.username, usuario.email, passwordHash]
+  );
+
+  const usuarioCreado = usuarioResult.rows[0];
+
+  // =========================
+  // 3. FECHAS
+  // =========================
+  const fechaInscripcion = new Date();
+  const fechaVencimiento = new Date(fechaInscripcion);
+  fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+
+  // =========================
+  // 4. CREAR CLIENTE
+  // =========================
+  const clienteCreado = await this.clienteModel.crear(
+    {
+      usuario_id: usuarioCreado.id,
+      nombre: cliente.nombre,
+      apellido: cliente.apellido,
+      telefono: cliente.telefono,
+      direccion: cliente.direccion,
+      entrenador_id: cliente.entrenador_id,
+      estado_cuota: 'activo',
+      fecha_inscripcion: fechaInscripcion,
+      fecha_vencimiento: fechaVencimiento
+    },
+    client
+  );
+
+  // =========================
+  // 5. PAGO (si no existe)
+  // =========================
+  const pagoExistente = await client.query(
+    `
+    SELECT id
+    FROM pagos
+    WHERE cliente_id = $1
       AND periodo_mes = $2
       AND periodo_ano = $3
-      `,
-      [usuario.email, pago.mes, pago.ano]
-    );
+    `,
+    [usuarioCreado.id, pago.mes, pago.ano]
+  );
 
-    if (existePago.rowCount > 0) {
-      throw new Error('El período ya está abonado');
-    }
+  let pagoId: number;
 
-    // =========================
-    // 3. CREAR USUARIO
-    // =========================
-    const passwordHash = await bcrypt.hash(usuario.password, 10);
-
-    const usuarioResult = await client.query(
-      `
-      INSERT INTO usuario (username, email, password_hash, rol, activo)
-      VALUES ($1, $2, $3, 'cliente', true)
-      RETURNING id, username, email
-      `,
-      [usuario.username, usuario.email, passwordHash]
-    );
-
-    const usuarioCreado = usuarioResult.rows[0];
-
-    // =========================
-    // 4. GENERAR FECHAS
-    // =========================
-    const fechaInscripcion = new Date();
-    const fechaVencimiento = new Date(fechaInscripcion);
-    fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // 30 días después
-
-    // =========================
-    // 5. CREAR CLIENTE
-    // =========================
-    const clienteCreado = await this.clienteModel.crear(
-      {
-        usuario_id: usuarioCreado.id,
-        nombre: cliente.nombre,
-        apellido: cliente.apellido,
-        telefono: cliente.telefono,
-        direccion: cliente.direccion,
-        entrenador_id: cliente.entrenador_id,
-        estado_cuota: 'activo',
-        fecha_inscripcion: fechaInscripcion,
-        fecha_vencimiento: fechaVencimiento
-      },
-      client
-    );
-
-    // =========================
-    // 6. REGISTRAR PAGO
-    // =========================
-    const pagoResult = await client.query(
+  if (pagoExistente.rowCount === 0) {
+    const pagoInsert = await client.query(
       `
       INSERT INTO pagos (
         cliente_id,
@@ -130,70 +124,76 @@ export class ClienteAltaService {
       ]
     );
 
-    const pagoId = pagoResult.rows[0].id;
-
-    // =========================
-    // 7. GENERAR CARNET (versión moderna)
-    // =========================
-    const carnetData: CarnetData = {
-      clienteId: usuarioCreado.id,
-      nombre: cliente.nombre,
-      apellido: cliente.apellido,
-      fechaPago: fechaInscripcion,
-      mes: pago.mes,
-      año: pago.ano
-    };
-
-    const carnet = await this.carnetService.generarCarnetPNG(carnetData);
-
-    if (!carnet?.url) {
-      throw new Error('No se pudo generar el carnet');
-    }
-
-    // =========================
-    // 8. GUARDAR CARNET
-    // =========================
-    const carnetResult = await client.query(
-      `
-      INSERT INTO carnets (
-        cliente_id,
-        usuario_id,
-        meses_pagados,
-        carnet_url,
-        activo,
-        fecha_desde
-      )
-      VALUES ($1, $2, $3, $4, true, CURRENT_DATE)
-      RETURNING id
-      `,
-      [
-        usuarioCreado.id,
-        usuarioCreado.id,
-        JSON.stringify([{ mes: pago.mes, ano: pago.ano }]),
-        carnet.url
-      ]
-    );
-
-    const carnetId = carnetResult.rows[0].id;
-
-    // =========================
-    // 9. RESPUESTA FINAL
-    // =========================
-    return {
-      usuario: usuarioCreado,
-      cliente: clienteCreado,
-      pago: {
-        id: pagoId,
-        monto: pago.monto,
-        mes: pago.mes,
-        ano: pago.ano
-      },
-      carnet: {
-        id: carnetId,
-        url: carnet.url
-      }
-    };
+    pagoId = pagoInsert.rows[0].id;
+  } else {
+    pagoId = pagoExistente.rows[0].id;
   }
+
+  // =========================
+  // 6. GENERAR CARNET (SIEMPRE)
+  // =========================
+  const carnetData: CarnetData = {
+    clienteId: usuarioCreado.id,
+    nombre: cliente.nombre,
+    apellido: cliente.apellido,
+    fechaPago: fechaInscripcion,
+    mes: pago.mes,
+    año: pago.ano
+  };
+
+  const carnet = await this.carnetService.generarCarnetPNG(carnetData);
+
+  if (!carnet?.url) {
+    throw new Error('No se pudo generar el carnet');
+  }
+
+  // =========================
+  // 7. GUARDAR / ACTUALIZAR CARNET
+  // =========================
+  await client.query(
+    `
+    INSERT INTO carnets (
+      cliente_id,
+      usuario_id,
+      meses_pagados,
+      carnet_url,
+      activo,
+      fecha_desde
+    )
+    VALUES ($1, $2, $3, $4, true, CURRENT_DATE)
+    ON CONFLICT (cliente_id)
+    DO UPDATE SET
+      carnet_url = EXCLUDED.carnet_url,
+      meses_pagados = EXCLUDED.meses_pagados,
+      activo = true,
+      fecha_desde = CURRENT_DATE
+    `,
+    [
+      usuarioCreado.id,
+      usuarioCreado.id,
+      JSON.stringify([{ mes: pago.mes, ano: pago.ano }]),
+      carnet.url
+    ]
+  );
+
+  // =========================
+  // 8. RESPUESTA
+  // =========================
+  return {
+    usuario: usuarioCreado,
+    cliente: clienteCreado,
+    pago: {
+      id: pagoId,
+      monto: pago.monto,
+      mes: pago.mes,
+      ano: pago.ano
+    },
+    carnet: {
+      url: carnet.url
+    }
+  };
+}
+
 
   /**
    * Actualiza estado del cliente según pago o vencimiento

@@ -4,7 +4,7 @@
 
 export const environment = {
   production: false,
-   apiUrl: 'https://gym-app-n77p.onrender.com/api'
+   apiUrl: 'https://gym-app-onix.onrender.com/api'
 };
 
 /*
