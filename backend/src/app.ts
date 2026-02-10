@@ -16,15 +16,16 @@ const PORT = process.env.PORT || 3000;
    CORS
 ====================== */
 const allowedOrigins = [
-  'https://gym-app-onix-frontend.onrender.com', // frontend en Render
-  'http://localhost:8100',  // para pruebas locales con Ionic
-  'http://localhost:4200',  // para pruebas locales con Angular
-  'http://localhost:3000'   // otra posible prueba local
+  'https://gym-app-onix-frontend.onrender.com',
+  
+  'http://localhost:8100',
+  'http://localhost:4200',
+  'http://localhost:3000'
 ];
 
 app.use(cors({
   origin(origin, callback) {
-    if (!origin) return callback(null, true); // permite requests desde Postman o scripts
+    if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
@@ -32,7 +33,6 @@ app.use(cors({
 }));
 
 app.options('*', cors());
-
 
 /* ======================
    MIDDLEWARES
